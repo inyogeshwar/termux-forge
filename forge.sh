@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  ⚒️  TERMUX-FORGE — Main Setup v4.1 (Full Fixed)          ║
+# ║  ⚒️  TERMUX-FORGE — Main Setup v4.1 (Final Fixed)         ║
 # ║  🎯 OpenCode + Android SDK + APK Build                   ║
 # ║  👤 github.com/inyogeshwar                               ║
 # ╚══════════════════════════════════════════════════════════╝
@@ -168,7 +168,6 @@ step_packages() {
   clear
   log "▰▰▰▱▱▱▱▱  [3/7] 📦 Base packages..."
   
-  # Speedtest-cli removed from here (handled in step_speedtest)
   pkg_install \
     git curl wget unzip nano zsh toilet ruby figlet \
     nodejs openjdk-17 gradle python \
@@ -495,11 +494,28 @@ doctor() {
   check "✓ java"                  'command -v java'
   check "✓ gradle"                'command -v gradle'
   check "✓ aapt2"                 'command -v aapt2'
-  check "✓ OpenCode"              'command -v opencode'
+  
+  # ✅ FIX: OpenCode dynamic check
+  if command -v opencode >/dev/null 2>&1 || [[ -x "$HOME/.opencode/bin/opencode" ]] || [[ -x "$PREFIX/bin/opencode" ]]; then
+    ok "✓ OpenCode"
+  else
+    warn "⚠ OpenCode (nahi mila — 'forge ai' try karo)"
+    fails=$((fails+1))
+  fi
+
   check "✓ Android SDK"           '[[ -d "$ANDROID_SDK" ]]'
   check "✓ platforms/android-35"  '[[ -d "$ANDROID_SDK/platforms/android-35" ]]'
   check "✓ build-tools/35.0.0"    '[[ -d "$ANDROID_SDK/build-tools/35.0.0" ]]'
-  check "✓ Test APK"              '[[ -f "$HOME/hello-forge/app/build/outputs/apk/debug/app-debug.apk" ]]'
+
+  # ✅ FIX: Test APK dynamic check
+  local apk_file
+  apk_file="$(find "$HOME/hello-forge" -name "*.apk" -type f 2>/dev/null | head -n 1)"
+  if [[ -n "$apk_file" ]]; then
+    ok "✓ Test APK ($apk_file)"
+  else
+    warn "⚠ Test APK (nahi mila — 'forge build' chalao)"
+    fails=$((fails+1))
+  fi
 
   [[ "$fails" -eq 0 ]] && ok "🎯 Sab theek hai! 🚀" || warn "⚠ $fails check(s) fail"
   return "$fails"
