@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  🚀 TERMUX-FORGE — Bootstrap Installer v4.1              ║
+# ║  🚀 TERMUX-FORGE — Bootstrap Installer v5.0              ║
 # ║  ⚒️  forge anything on Termux                             ║
 # ║  👤 github.com/inyogeshwar                               ║
 # ╚══════════════════════════════════════════════════════════╝
@@ -24,10 +24,10 @@ clear
 # Banner
 cat <<EOF
 ${CY}┌────────────────────────────────────┐${R}
-${CY}│${R}  ${MG}${B}🚀 TERMUX-FORGE  v4.1${R}             ${CY}│${R}
+${CY}│${R}  ${MG}${B}⚒️  TERMUX-FORGE  v5.0${R}            ${CY}│${R}
 ${CY}├────────────────────────────────────┤${R}
 ${CY}│${R}  ${BL}👤 inyogeshwar${R}                     ${CY}│${R}
-${CY}│${R}  ${Y}⚒️  Forge anything on Termux${R}        ${CY}│${R}
+${CY}│${R}  ${Y}🚀 Forge anything on Termux${R}        ${CY}│${R}
 ${CY}└────────────────────────────────────┘${R}
 EOF
 
