@@ -95,9 +95,9 @@ pkg_install() {
   local log_file="$FORGE_DIR/pkg_install.log"
   local attempt
 
-  # 3 baar retry karega
+  # Retry logic
   for attempt in {1..3}; do
-    # Live progress on screen using tee
+    # 'tee' live progress dikhata hai
     if pkg install -y "${missing[@]}" 2>&1 | tee "$log_file"; then
       ok "✓ Packages installed successfully."
       return 0
@@ -137,7 +137,7 @@ step_update() {
   sleep 1
 }
 
-# ── [3] Packages (FIXED glibc-runner issue) ───────────────
+# ── [3] Packages (glibc-runner sequence fixed) ────────────
 step_packages() {
   clear
   log "▰▰▰▱▱▱▱▱  [3/8] 📦 Base packages..."
@@ -209,16 +209,34 @@ ZSHRC
   sleep 1
 }
 
-# ── [5] OpenCode ──────────────────────────────────────────
+# ── [5] OpenCode (Fixed URL + NPM Fallback) ───────────────
 step_opencode() {
   clear
   log "▰▰▰▰▰▱▱▱  [5/8] 🤖 OpenCode..."
-  if have opencode; then ok "✅ OpenCode already installed"; return; fi
-  log "⏳ Downloading OpenCode..."
-  curl -fsSL https://opencode.ai/install.sh -o "$TMPDIR/oc.sh" \
-    && bash "$TMPDIR/oc.sh" >/dev/null 2>&1 \
-    && ok "✅ OpenCode installed" \
-    || warn "🔔 OpenCode install fail — baad me try karo"
+  
+  if have opencode; then 
+    ok "✅ OpenCode already installed"
+    return
+  fi
+
+  log "⏳ Downloading OpenCode... (Live progress below)"
+
+  # 1. Official v2 URL (without .sh)
+  if curl -fsSL https://opencode.ai/install | bash; then
+    ok "✅ OpenCode installed (official script)"
+    return
+  fi
+
+  warn "⚠️ Official install script fail hua, npm se try kar rahe hain..."
+  sleep 1
+  
+  # 2. Fallback via npm (Node.js already installed)
+  if npm install -g opencode-ai >/dev/null 2>&1; then
+    ok "✅ OpenCode installed (via npm)"
+    return
+  fi
+  
+  warn "🔔 OpenCode install nahi ho paya, 'forge ai' baad me try karo"
   sleep 1
 }
 
@@ -237,7 +255,6 @@ step_android_sdk() {
     log "📥 Downloading cmdline-tools (~100 MB)..."
     log "⏳ Live progress below:"
     local zip="$TMPDIR/cmdline-tools.zip"
-    # Added -# flag for live progress bar
     curl -# -L "$CMDLINE_TOOLS_URL" -o "$zip" \
       || die "❌ cmdline-tools download fail"
     rm -rf "$ANDROID_SDK/cmdline-tools"
@@ -281,7 +298,7 @@ ENV
   sleep 1
 }
 
-# ── [7] Test APK ──────────────────────────────────────────
+# ── [7] Test APK (Fixed Gradle Settings) ──────────────────
 step_test_apk() {
   clear
   log "▰▰▰▰▰▰▰▱  [7/8] 🎯 Test APK build..."
@@ -295,10 +312,19 @@ step_test_apk() {
     log "🏗️  Creating sample project: $TEST_APP"
     mkdir -p "$TEST_APP/app/src/main/java/com/forge/hello"
 
+    # ✅ FIX: PluginManagement block add kiya
     cat > "$TEST_APP/settings.gradle" <<'EOF'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
 rootProject.name = "hello-forge"
 include ":app"
 EOF
+
     cat > "$TEST_APP/build.gradle" <<'EOF'
 plugins {
     id 'com.android.application' version '8.5.2' apply false
