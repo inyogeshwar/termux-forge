@@ -80,16 +80,41 @@ ask_name() {
 pkg_install() {
   local pkgs=("$@")
   [[ ${#pkgs[@]} -eq 0 ]] && return 0
+  
   local missing=()
   local p
   for p in "${pkgs[@]}"; do
     dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p")
   done
+  
   [[ ${#missing[@]} -eq 0 ]] && return 0
+  
   log "📦 Installing: ${missing[*]}"
-  pkg install -y "${missing[@]}" >/dev/null 2>&1 \
-    || die "❌ pkg install fail: ${missing[*]}"
+  
+  mkdir -p "$FORGE_DIR"
+  local log_file="$FORGE_DIR/pkg_install.log"
+  local attempt
+
+  # Retry logic (3 baar try karega network issue ke liye)
+  for attempt in {1..3}; do
+    if pkg install -y "${missing[@]}" > "$log_file" 2>&1; then
+      ok "✓ Packages install ho gaye"
+      return 0
+    fi
+    
+    if [[ $attempt -lt 3 ]]; then
+      warn "⚠ Install fail hua (Attempt $attempt/3). 3 second baad retry..."
+      sleep 3
+    fi
+  done
+
+  # Agar 3 baar mein bhi fail ho jaye toh error dikhao
+  warn "❌ pkg install fail ho gaya."
+  warn "Error log (last 15 lines):"
+  tail -n 15 "$log_file" >&2
+  die "Kripya internet check karein ya 'termux-change-repo' chala kar mirror badlein."
 }
+
 has_storage() { [[ -d "$HOME/storage" ]]; }
 
 # ── [1] Storage ───────────────────────────────────────────
