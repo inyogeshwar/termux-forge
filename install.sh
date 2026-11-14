@@ -18,6 +18,9 @@ log()  { printf '%s➜%s %s\n' "$BL$B" "$R" "$*"; }
 ok()   { printf '%s✓%s %s\n' "$G" "$R" "$*"; }
 die()  { printf '%s✗%s %s\n' "$RE" "$R" "$*" >&2; exit 1; }
 
+# Screen clear karo shuru mein
+clear
+
 cat <<EOF
 ${CY}╔══════════════════════════════════════════════════════════╗${R}
 ${CY}║${R}  ${MG}${B}🚀 TERMUX-FORGE${R}  ${CY}│${R}  ${G}v4.0${R}                        ${CY}║${R}
@@ -29,8 +32,8 @@ EOF
   || die "⛔ Yeh script sirf Termux (Android) ke liye hai."
 
 command -v git >/dev/null 2>&1 || {
-  log "📦 git install ho raha hai..."
-  pkg install -y git
+  log "📦 git install ho raha hai (please wait)..."
+  pkg install -y git | tee "$HOME/git_install.log"
 }
 
 if [[ -d "$DEST/.git" ]]; then
@@ -48,4 +51,5 @@ fi
 
 ok "✅ Repo ready → $DEST"
 echo
+sleep 1
 exec bash "$DEST/forge.sh" "$@"

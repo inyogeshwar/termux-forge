@@ -38,6 +38,7 @@ have() { command -v "$1" >/dev/null 2>&1; }
 
 # ── Banner ────────────────────────────────────────────────
 banner() {
+clear
 cat <<EOF
 ${CY}╔══════════════════════════════════════════════════════════╗${R}
 ${CY}║${R}   ${MG}${B}███████╗ ██████╗ ██████╗  ██████╗ ███████╗${R}          ${CY}║${R}
@@ -80,102 +81,98 @@ ask_name() {
 pkg_install() {
   local pkgs=("$@")
   [[ ${#pkgs[@]} -eq 0 ]] && return 0
-  
   local missing=()
   local p
   for p in "${pkgs[@]}"; do
     dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p")
   done
-  
   [[ ${#missing[@]} -eq 0 ]] && return 0
   
   log "📦 Installing: ${missing[*]}"
-  log "⏳ Downloading packages... (Screen par progress dikhega, please wait)"
+  log "⏳ Downloading... (Live progress below, please wait)"
   
   mkdir -p "$FORGE_DIR"
   local log_file="$FORGE_DIR/pkg_install.log"
   local attempt
 
-  # Retry logic (3 baar try karega network issue ke liye)
+  # 3 baar retry karega
   for attempt in {1..3}; do
-    # 'tee' command se user ko screen par live progress dikhega aur log file bhi banegi
+    # Live progress on screen using tee
     if pkg install -y "${missing[@]}" 2>&1 | tee "$log_file"; then
-      ok "✓ Packages install ho gaye"
+      ok "✓ Packages installed successfully."
       return 0
     fi
-    
     if [[ $attempt -lt 3 ]]; then
-      warn "⚠ Install fail hua (Attempt $attempt/3). 3 second baad retry..."
+      warn "⚠ Install fail hua (Attempt $attempt/3). Retrying in 3s..."
       sleep 3
     fi
   done
 
-  # Agar 3 baar mein bhi fail ho jaye toh error dikhao
-  warn "❌ pkg install fail ho gaya."
-  warn "Error log (last 15 lines):"
+  warn "❌ pkg install failed."
   tail -n 15 "$log_file" >&2
-  die "Kripya internet check karein ya 'termux-change-repo' chala kar mirror badlein."
+  die "Check internet or run 'termux-change-repo'."
 }
-
 has_storage() { [[ -d "$HOME/storage" ]]; }
 
 # ── [1] Storage ───────────────────────────────────────────
 step_storage() {
+  clear
   log "▰▱▱▱▱▱▱▱  [1/8] 🔐 Storage access..."
   if has_storage; then ok "✅ Storage mil gaya"; return; fi
   termux-setup-storage >/dev/null 2>&1 || true
   local i
   for i in {1..15}; do has_storage && break; sleep 1; done
   has_storage && ok "✅ Storage mil gaya" || warn "🔔 Storage permission nahi mila (skip)"
+  sleep 1
 }
 
 # ── [2] Update ────────────────────────────────────────────
 step_update() {
+  clear
   log "▰▰▱▱▱▱▱▱  [2/8] 🔄 System update..."
-  pkg update -y >/dev/null 2>&1 || true
-  pkg upgrade -y >/dev/null 2>&1 || true
+  log "⏳ Please wait, updating system..."
+  pkg update -y 2>&1 | tee -a "$FORGE_DIR/pkg_update.log" >/dev/null || true
+  pkg upgrade -y 2>&1 | tee -a "$FORGE_DIR/pkg_update.log" >/dev/null || true
   ok "✅ System upgrade"
+  sleep 1
 }
 
-# ── [3] Packages ──────────────────────────────────────────
+# ── [3] Packages (FIXED glibc-runner issue) ───────────────
 step_packages() {
+  clear
   log "▰▰▰▱▱▱▱▱  [3/8] 📦 Base packages..."
-
-  # 1. Pehle normal packages install karo
+  
+  # 1. Normal packages
   pkg_install \
     git curl wget unzip nano zsh toilet ruby \
     nodejs openjdk-17 gradle \
     aapt aapt2 apksigner
 
-  # 2. glibc-repo ko alag se install karo
-  log "📦 Adding glibc repository..."
+  # 2. glibc-repo (Alag se, taaki update trigger ho)
   if ! dpkg -s glibc-repo >/dev/null 2>&1; then
-    pkg install -y glibc-repo >/dev/null 2>&1 || warn "🔔 glibc-repo install fail"
+    log "📦 Adding glibc repository..."
+    pkg install -y glibc-repo 2>&1 | tee -a "$FORGE_DIR/pkg_install.log"
+    log "🔄 Updating package lists for glibc..."
+    pkg update -y >/dev/null 2>&1 || true
   fi
 
-  # 3. Ab package lists refresh karo taaki glibc-runner detect ho sake
-  log "🔄 Updating package lists for glibc..."
-  pkg update -y >/dev/null 2>&1 || true
-
-  # 4. Ab glibc-runner install karo
+  # 3. glibc-runner (Ab yeh mil jayega)
   if ! dpkg -s glibc-runner >/dev/null 2>&1; then
-    if ! pkg install -y glibc-runner >/dev/null 2>&1; then
-      warn "⚠️ glibc-runner install fail hua, retry..."
-      pkg update -y >/dev/null 2>&1 || true
-      pkg install -y glibc-runner >/dev/null 2>&1 || warn "❌ glibc-runner install nahi ho paya"
-    fi
+    pkg_install glibc-runner
   fi
 
   if ! have lolcat; then
     gem install lolcat >/dev/null 2>&1 || warn "🔔 lolcat install fail (cosmetic)"
   fi
-
   ok "✅ Packages ready"
+  sleep 1
 }
 
 # ── [4] Shell ─────────────────────────────────────────────
 step_shell() {
+  clear
   log "▰▰▰▰▱▱▱▱  [4/8] 🐚 Oh My Zsh + Powerlevel10k..."
+  log "⏳ Setting up terminal environment..."
 
   if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
     RUNZSH=no KEEP_ZSHRC=yes \
@@ -209,20 +206,25 @@ ZSHRC
     chsh -s zsh 2>/dev/null || warn "🔔 chsh fail — manually 'chsh -s zsh' chalao"
   fi
   ok "✅ zsh + p10k ready"
+  sleep 1
 }
 
 # ── [5] OpenCode ──────────────────────────────────────────
 step_opencode() {
+  clear
   log "▰▰▰▰▰▱▱▱  [5/8] 🤖 OpenCode..."
   if have opencode; then ok "✅ OpenCode already installed"; return; fi
+  log "⏳ Downloading OpenCode..."
   curl -fsSL https://opencode.ai/install.sh -o "$TMPDIR/oc.sh" \
     && bash "$TMPDIR/oc.sh" >/dev/null 2>&1 \
     && ok "✅ OpenCode installed" \
     || warn "🔔 OpenCode install fail — baad me try karo"
+  sleep 1
 }
 
 # ── [6] Android SDK ───────────────────────────────────────
 step_android_sdk() {
+  clear
   log "▰▰▰▰▰▰▱▱  [6/8] ⚙️  Android SDK..."
   [[ "$SKIP_ANDROID" == "1" ]] && { warn "⏭️  Android SDK skipped"; return; }
 
@@ -232,12 +234,15 @@ step_android_sdk() {
   local sdkmanager="$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager"
 
   if [[ ! -x "$sdkmanager" ]]; then
-    log "📥 cmdline-tools download..."
+    log "📥 Downloading cmdline-tools (~100 MB)..."
+    log "⏳ Live progress below:"
     local zip="$TMPDIR/cmdline-tools.zip"
-    curl -fsSL "$CMDLINE_TOOLS_URL" -o "$zip" \
+    # Added -# flag for live progress bar
+    curl -# -L "$CMDLINE_TOOLS_URL" -o "$zip" \
       || die "❌ cmdline-tools download fail"
     rm -rf "$ANDROID_SDK/cmdline-tools"
     mkdir -p "$ANDROID_SDK/cmdline-tools"
+    log "📦 Extracting..."
     unzip -q "$zip" -d "$ANDROID_SDK/cmdline-tools"
     mv "$ANDROID_SDK/cmdline-tools/cmdline-tools" "$ANDROID_SDK/cmdline-tools/latest"
   fi
@@ -246,10 +251,11 @@ step_android_sdk() {
 
   if [[ ! -d "$ANDROID_SDK/platforms/$SDK_PLATFORM" ]] \
      || [[ ! -d "$ANDROID_SDK/build-tools/$BUILD_TOOLS_VER" ]]; then
-    log "📦 SDK components (~200 MB)..."
+    log "📦 Downloading SDK components (~200 MB)..."
+    log "⏳ Live progress below:"
     "$sdkmanager" --sdk_root="$ANDROID_SDK" \
       "platform-tools" "platforms;$SDK_PLATFORM" "build-tools;$BUILD_TOOLS_VER" \
-      >/dev/null 2>&1 || die "❌ sdkmanager install fail"
+      2>&1 | tee "$FORGE_DIR/sdk_download.log" || die "❌ sdkmanager install fail"
   fi
 
   local aapt2_bin
@@ -272,11 +278,13 @@ ENV
   [[ -f "$ANDROID_SDK/platforms/$SDK_PLATFORM/android.jar" ]] \
     && ok "✅ android.jar mila" || warn "🔔 android.jar nahi mila"
   ok "✅ Android SDK ready"
+  sleep 1
 }
 
 # ── [7] Test APK ──────────────────────────────────────────
 step_test_apk() {
-  log "▰▰▰▰▰▰▰▱  [7/8] 🎯 Test APK build (3-5 min)..."
+  clear
+  log "▰▰▰▰▰▰▰▱  [7/8] 🎯 Test APK build..."
   [[ "$SKIP_ANDROID" == "1" || "$SKIP_TEST_APK" == "1" ]] && { warn "⏭️  Test APK skipped"; return; }
 
   export JAVA_HOME="${PREFIX}/lib/jvm/java-17-openjdk"
@@ -284,21 +292,19 @@ step_test_apk() {
   export ANDROID_SDK_ROOT="$ANDROID_SDK"
 
   if [[ ! -f "$TEST_APP/settings.gradle" ]]; then
-    log "🏗️  Sample project ban raha hai: $TEST_APP"
+    log "🏗️  Creating sample project: $TEST_APP"
     mkdir -p "$TEST_APP/app/src/main/java/com/forge/hello"
 
     cat > "$TEST_APP/settings.gradle" <<'EOF'
 rootProject.name = "hello-forge"
 include ":app"
 EOF
-
     cat > "$TEST_APP/build.gradle" <<'EOF'
 plugins {
     id 'com.android.application' version '8.5.2' apply false
     id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
 }
 EOF
-
     cat > "$TEST_APP/app/build.gradle" <<'EOF'
 plugins {
     id 'com.android.application'
@@ -321,7 +327,6 @@ android {
     kotlinOptions { jvmTarget = '17' }
 }
 EOF
-
     cat > "$TEST_APP/app/src/main/AndroidManifest.xml" <<'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -335,7 +340,6 @@ EOF
     </application>
 </manifest>
 EOF
-
     cat > "$TEST_APP/app/src/main/java/com/forge/hello/MainActivity.kt" <<'EOF'
 package com.forge.hello
 import android.app.Activity
@@ -353,35 +357,35 @@ class MainActivity : Activity() {
 EOF
   fi
 
-  # 🔧 FIX #1: local.properties auto-create
   local lp="$TEST_APP/local.properties"
   if [[ ! -f "$lp" ]] || ! grep -q "sdk.dir=" "$lp" 2>/dev/null; then
     echo "sdk.dir=$ANDROID_SDK" > "$lp"
-    ok "🔧 local.properties banaya → sdk.dir=$ANDROID_SDK"
+    ok "🔧 local.properties created → sdk.dir=$ANDROID_SDK"
   fi
 
-  # 🔧 FIX #2: wrapper optional — system gradle fallback
   local gradle_cmd
   if [[ -x "$TEST_APP/gradlew" ]]; then
     gradle_cmd="$TEST_APP/gradlew"; ok "✓ gradlew detected"
   else
-    gradle_cmd="gradle"; ok "✓ System gradle use ho raha hai (wrapper skip)"
+    gradle_cmd="gradle"; ok "✓ Using system gradle (wrapper skip)"
   fi
 
-  # 🔧 FIX #3: --no-daemon for Termux stability
+  log "⏳ Building APK... (First time 3-5 mins lagenge)"
   cd "$TEST_APP"
   if $gradle_cmd assembleDebug --no-daemon > "$FORGE_DIR/build.log" 2>&1; then
     ok "✅ Test APK ready"
     local apk="$TEST_APP/app/build/outputs/apk/debug/app-debug.apk"
     [[ -f "$apk" ]] && ok "📲 APK → $apk" || warn "🔔 APK file not found"
   else
-    warn "❌ Test APK build fail → log: $FORGE_DIR/build.log"
+    warn "❌ Build failed → log: $FORGE_DIR/build.log"
     tail -20 "$FORGE_DIR/build.log" >&2 || true
   fi
+  sleep 1
 }
 
 # ── [8] Finalize ──────────────────────────────────────────
 step_finalize() {
+  clear
   log "▰▰▰▰▰▰▰▰  [8/8] 🏁 Finalizing..."
   mkdir -p "$FORGE_DIR"
 
@@ -461,6 +465,7 @@ main() {
   step_test_apk
   step_finalize
 
+  clear
   printf '\n%s╔══════════════════════════════════════════════════════════╗%s\n' "$G$B" "$R"
   printf '%s║%s  ✅ SETUP COMPLETE!  ⚒️  🎯                            %s║%s\n' "$G$B" "$R" "$G$B" "$R"
   printf '%s╚══════════════════════════════════════════════════════════╝%s\n\n' "$G$B" "$R"
