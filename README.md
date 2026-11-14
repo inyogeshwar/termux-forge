@@ -1,6 +1,6 @@
-<div align="center">
-
 # ⚒️ TERMUX-FORGE
+
+<div align="center">
 
 ### `Termux` → `OpenCode` → `Android APK` — **one command** me sab kuch ⚡
 
@@ -9,7 +9,7 @@
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 [![ShellCheck](https://img.shields.io/badge/ShellCheck-Passing-brightgreen?style=for-the-badge)](https://www.shellcheck.net)
 
-```
+```text
 ╔══════════════════════════════════════════════════════════╗
 ║   ███████╗ ██████╗ ██████╗  ██████╗ ███████╗             ║
 ║   ██╔════╝██╔═══██╗██╔══██╗██╔════╝ ██╔════╝             ║
@@ -29,15 +29,15 @@
 
 ## ✨ Features
 
-| | Feature | Description |
-|---|---|---|
-| 🚀 | **One-liner** | `curl \| bash` — bas ek command |
-| 🔁 | **Idempotent** | Dobara chalao, sirf missing steps chalenge |
-| 🔧 | **Wrapper Fix** | `--no-validate-url` + system gradle fallback |
-| 📍 | **Auto `local.properties`** | `SDK location not found` bug gone |
-| 🤖 | **Non-interactive** | `FORGE_YES=1` for automation |
-| ⚒️ | **`forge` CLI** | `forge build`, `forge doctor`, `forge ai` |
-| 📱 | **Sample APK** | `hello-forge` pehli baar me hi build hota hai |
+| Feature | Description |
+| :--- | :--- |
+| 🚀 **One-liner** | `curl \| bash` — bas ek command |
+| 🔁 **Idempotent** | Dobara chalao, sirf missing steps chalenge |
+| 🔧 **Wrapper Fix** | `--no-validate-url` + system gradle fallback |
+| 📍 **Auto `local.properties`** | `SDK location not found` bug gone |
+| 🤖 **Non-interactive** | `FORGE_YES=1` for automation |
+| ⚒️ **`forge` CLI** | `forge build`, `forge doctor`, `forge ai` |
+| 📱 **Sample APK** | `hello-forge` pehli baar me hi build hota hai |
 
 ---
 
@@ -46,7 +46,7 @@
 > ⚠️ **Warning:** Android development tools bade hote hain. Setup shuru karne se pehle apne phone mein **kam se kam 5 GB ki free storage** zaroor check kar lein, warna installation beech mein fail ho sakta hai.
 
 | Resource | Approx. Size | Description |
-|---|---|---|
+| :--- | :--- | :--- |
 | 📥 **Internet Data** | **~1.2 GB - 1.6 GB** | Pehli baar setup karte waqt download hoga (Packages, SDK, OpenCode, APK build cache). |
 | 💾 **Phone Storage** | **~2.5 GB - 4 GB** | Extract hone ke baad aur Gradle cache banne ke baad phone mein itni jagah occupy hogi. |
 | ⏱️ **Time** | **10 - 15 Minutes** | Achhe internet par pehli baar setup poora hone mein itna time lagta hai. |
@@ -90,7 +90,7 @@ Install ke baad → `exec zsh` → `forge doctor`
 ## 🔧 Environment Variables
 
 | Variable | Default | Description |
-|---|---|---|
+| :--- | :--- | :--- |
 | `FORGE_NAME` | prompt | Banner naam |
 | `FORGE_YES` | `0` | `1` = skip prompts |
 | `SKIP_ANDROID` | `0` | `1` = Android skip |
@@ -105,8 +105,8 @@ FORGE_NAME=Yogesh FORGE_YES=1 bash install.sh
 
 ## 🐛 Fixed Bugs
 
-| 🐞 Bug | 🔧 Fix |
-|---|---|
+| Bug | Fix |
+| :--- | :--- |
 | `Test of distribution url ... failed` | System gradle fallback + `--no-validate-url` |
 | `./gradlew: No such file or directory` | `[[ -x gradlew ]] && gradlew \|\| gradle` |
 | `SDK location not found` | Auto-create `local.properties` |
@@ -153,7 +153,7 @@ Ya `~/storage/downloads/` me copy karke file manager se install karo.
 
 ## 🗂️ Project Structure
 
-```
+```text
 termux-forge/
 ├── 🚀 install.sh
 ├── ⚒️  forge.sh
