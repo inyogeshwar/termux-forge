@@ -18,8 +18,8 @@
 ║   ██║     ╚██████╔╝██║  ██║╚██████╔╝███████╗             ║
 ║   ╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝             ║
 ╠══════════════════════════════════════════════════════════╣
-║  🎯 v4.0  │  🤖 OpenCode  │  ⚙️  Android SDK  │  ⚒️    ║
-║  👤 github.com/inyogeshwar                               ║
+║  🎯 v4.0  │  🤖 OpenCode  │  ⚙️  Android SDK  │  ⚒️  ║
+║  👤 github.com/inyogeshwar                              ║
 ╚══════════════════════════════════════════════════════════╝
 ```
 
@@ -38,6 +38,20 @@
 | 🤖 | **Non-interactive** | `FORGE_YES=1` for automation |
 | ⚒️ | **`forge` CLI** | `forge build`, `forge doctor`, `forge ai` |
 | 📱 | **Sample APK** | `hello-forge` pehli baar me hi build hota hai |
+
+---
+
+## 📊 Data & Storage Requirements
+
+> ⚠️ **Warning:** Android development tools bade hote hain. Setup shuru karne se pehle apne phone mein **kam se kam 5 GB ki free storage** zaroor check kar lein, warna installation beech mein fail ho sakta hai.
+
+| Resource | Approx. Size | Description |
+|---|---|---|
+| 📥 **Internet Data** | **~1.2 GB - 1.6 GB** | Pehli baar setup karte waqt download hoga (Packages, SDK, OpenCode, APK build cache). |
+| 💾 **Phone Storage** | **~2.5 GB - 4 GB** | Extract hone ke baad aur Gradle cache banne ke baad phone mein itni jagah occupy hogi. |
+| ⏱️ **Time** | **10 - 15 Minutes** | Achhe internet par pehli baar setup poora hone mein itna time lagta hai. |
+
+**Note:** Agar aap dobara script chalate hain (`bash forge.sh`), toh script pehle se installed cheezein skip kar degi. Us waqt data aur time dono bahut kam lagega (sirf missing cheezein update hongi).
 
 ---
 
@@ -100,6 +114,7 @@ FORGE_NAME=Yogesh FORGE_YES=1 bash install.sh
 | `aapt2` hardcoded | `command -v aapt2` dynamic |
 | `sdkmanager` interactive pause | `yes \|` + `--sdk_root` |
 | Double install on rerun | `dpkg -s` check |
+| `glibc-runner` not found | Alag se `glibc-repo` add aur `pkg update` |
 
 ---
 
