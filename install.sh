@@ -2,7 +2,6 @@
 # ╔══════════════════════════════════════════════════════════╗
 # ║  🚀 TERMUX-FORGE — Bootstrap Installer v4.0              ║
 # ║  ⚒️  forge anything on Termux                             ║
-# ║  👤 github.com/inyogeshwar                               ║
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 
@@ -21,11 +20,14 @@ die()  { printf '%s✗%s %s\n' "$RE" "$R" "$*" >&2; exit 1; }
 # Screen clear karo shuru mein
 clear
 
+# ✅ FIX: Mobile-friendly compact banner
 cat <<EOF
-${CY}╔══════════════════════════════════════════════════════════╗${R}
-${CY}║${R}  ${MG}${B}🚀 TERMUX-FORGE${R}  ${CY}│${R}  ${G}v4.0${R}                        ${CY}║${R}
-${CY}║${R}  ${BL}👤 inyogeshwar${R}  ${CY}│${R}  ${Y}⚒️  forge anything${R}            ${CY}║${R}
-${CY}╚══════════════════════════════════════════════════════════╝${R}
+${CY}┌────────────────────────────────────┐${R}
+${CY}│${R}  ${MG}${B}⚒️  TERMUX-FORGE  v4.0${R}            ${CY}│${R}
+${CY}├────────────────────────────────────┤${R}
+${CY}│${R}  ${BL}👤 inyogeshwar${R}                     ${CY}│${R}
+${CY}│${R}  ${Y}🚀 Forge anything on Termux${R}        ${CY}│${R}
+${CY}└────────────────────────────────────┘${R}
 EOF
 
 [[ -n "${TERMUX_VERSION:-}" || "${PREFIX:-}" == *"com.termux"* ]] \
@@ -35,6 +37,8 @@ command -v git >/dev/null 2>&1 || {
   log "📦 git install ho raha hai (please wait)..."
   pkg install -y git | tee "$HOME/git_install.log"
 }
+
+# ... (baaki script same rahegi)
 
 if [[ -d "$DEST/.git" ]]; then
   log "🔄 Existing install update ho raha hai..."
