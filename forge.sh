@@ -129,14 +129,49 @@ step_update() {
   sleep 1
 }
 
+# ── [Speedtest] ───────────────────────────────────────────
+step_speedtest() {
+  clear
+  log "▰▱▱▱▱▱▱▱  [0/8] 🚀 Internet Speed Test..."
+  
+  if ! have speedtest-cli; then
+    log "📦 Installing Python (needed for speedtest)..."
+    pkg_install python || true
+    
+    log "🐍 Installing speedtest-cli via pip..."
+    pip install speedtest-cli --quiet 2>/dev/null || true
+    
+    # Fallback if pip fails
+    if ! have speedtest-cli; then
+      curl -fsSL https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py \
+        -o "$PREFIX/bin/speedtest-cli" && chmod +x "$PREFIX/bin/speedtest-cli" || true
+    fi
+  fi
+
+  if have speedtest-cli || [[ -x "$PREFIX/bin/speedtest-cli" ]]; then
+    log "⏳ Testing your network speed (Please wait 10-15s)..."
+    echo "--------------------------------------------------"
+    speedtest-cli --simple || warn "🔔 Speedtest fail ho gaya, par setup continue rahega."
+    echo "--------------------------------------------------"
+    if [[ "$FORGE_YES" == "0" ]]; then
+      printf '\n➜ Network theek lag raha hai? Setup start karne ke liye Enter dabao...'
+      read -r _ </dev/tty || true
+    fi
+  else
+    warn "🔔 speedtest-cli install nahi ho paya, skip kar rahe hain."
+  fi
+  sleep 1
+}
+
 # ── [3] Packages ──────────────────────────────────────────
 step_packages() {
   clear
   log "▰▰▰▱▱▱▱▱  [3/7] 📦 Base packages..."
   
+  # Speedtest-cli removed from here (handled in step_speedtest)
   pkg_install \
-    git curl wget unzip nano zsh toilet ruby figlet speedtest-cli \
-    nodejs openjdk-17 gradle \
+    git curl wget unzip nano zsh toilet ruby figlet \
+    nodejs openjdk-17 gradle python \
     aapt aapt2 apksigner
 
   if ! dpkg -s glibc-repo >/dev/null 2>&1; then
@@ -205,7 +240,7 @@ ZSHRC
   sleep 1
 }
 
-# ── [5] OpenCode (Robust Installer) ───────────────────────
+# ── [5] OpenCode ──────────────────────────────────────────
 step_opencode() {
   clear
   log "▰▰▰▰▰▱▱▱  [5/7] 🤖 OpenCode..."
@@ -226,21 +261,13 @@ step_opencode() {
   warn "⚠️ Official install script fail hua, alternative method try kar rahe hain..."
   sleep 1
   
-  # 2. Fallback: Binary download from GitHub Releases (Termux compatible)
-  local OPENCODE_URL="https://github.com/sst/opencode/releases/latest/download/opencode-linux-arm64"
-  local INSTALL_DIR="$HOME/.opencode/bin"
-  mkdir -p "$INSTALL_DIR"
-  
-  if curl -fsSL "$OPENCODE_URL" -o "$INSTALL_DIR/opencode"; then
-    chmod +x "$INSTALL_DIR/opencode"
-    export PATH="$PATH:$INSTALL_DIR"
-    if have opencode; then
-      ok "✅ OpenCode installed (binary)"
-      return
-    fi
+  # 2. Fallback: Termux Specific Repo
+  if curl -fsSL https://hope2333.github.io/repo/install.sh | sh -s -- --install opencode; then
+    ok "✅ OpenCode installed (Termux native)"
+    return
   fi
   
-  warn "🔔 OpenCode install nahi ho paya. Aap manually 'curl -fsSL https://opencode.ai/install | bash' chala sakte hain."
+  warn "🔔 OpenCode install nahi ho paya."
   sleep 1
 }
 
@@ -292,7 +319,7 @@ step_android_sdk() {
   sleep 1
 }
 
-# ── [7] Test APK Build (Fixed) ────────────────────────────
+# ── [7] Test APK Build ────────────────────────────────────
 step_test_apk() {
   clear
   log "▰▰▰▰▰▰▰▱  [7/7] 🎯 Test APK build..."
@@ -491,6 +518,7 @@ main() {
 
   step_storage
   step_update
+  step_speedtest
   step_packages
   step_shell
   step_opencode
