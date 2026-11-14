@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  ⚒️  TERMUX-FORGE — Ultimate Setup v5.0                   ║
+# ║  ⚒️  TERMUX-FORGE — Ultimate Setup v5.2                   ║
 # ║  🎯 OpenCode + Android SDK + APK Build                   ║
 # ║  👤 github.com/inyogeshwar                               ║
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 
 # ── Config ────────────────────────────────────────────────
-readonly FORGE_VERSION="5.0.0"
-readonly GRADLE_VER="8.7"
-readonly AGP_VER="8.5.2"
-readonly KOTLIN_VER="1.9.24"
+readonly FORGE_VERSION="5.2.0"
+readonly GRADLE_VER="8.9"
+readonly AGP_VER="8.7.3"
+readonly KOTLIN_VER="2.0.21"
 readonly SDK_PLATFORM="android-35"
 readonly BUILD_TOOLS_VER="35.0.0"
 readonly CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
@@ -83,9 +83,8 @@ pkg_install() {
     dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p")
   done
   [[ ${#missing[@]} -eq 0 ]] && return 0
-  
+
   log "📦 Installing: ${missing[*]}"
-  
   mkdir -p "$FORGE_DIR"
   local log_file="$FORGE_DIR/pkg_install.log"
   local attempt
@@ -111,7 +110,7 @@ has_storage() { [[ -d "$HOME/storage" ]]; }
 step_speedtest() {
   clear
   log "▰▱▱▱▱▱▱▱  [0/9] 🚀 Internet Speed Test..."
-  
+
   if ! have speedtest-cli; then
     pkg_install python || true
     pip install speedtest-cli --quiet 2>/dev/null || true
@@ -163,13 +162,12 @@ step_update() {
 step_packages() {
   clear
   log "▰▰▰▱▱▱▱▱  [3/9] 📦 Base packages..."
-  
+
   pkg_install \
     git curl wget unzip nano zsh toilet ruby figlet \
     nodejs openjdk-17 gradle python \
     aapt aapt2 apksigner glibc-repo
 
-  # Update for glibc
   pkg update -y >/dev/null 2>&1 || true
   pkg_install glibc-runner
 
@@ -180,7 +178,7 @@ step_packages() {
   sleep 1
 }
 
-# ── [4] Shell & Zshrc (Dynamic Banner) ────────────────────
+# ── [4] Shell & Zshrc ─────────────────────────────────────
 step_shell() {
   clear
   log "▰▰▰▰▱▱▱▱  [4/9] 🐚 Oh My Zsh + Powerlevel10k + Banner..."
@@ -200,7 +198,6 @@ step_shell() {
     || git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions.git \
          "$zc/plugins/zsh-autosuggestions" >/dev/null 2>&1 || true
 
-  # Create .zshrc with dynamic banner
   if ! grep -q 'FORGE_ZSHRC' "$HOME/.zshrc" 2>/dev/null; then
     cat >> "$HOME/.zshrc" <<'ZSHRC'
 
@@ -251,26 +248,25 @@ ZSHRC
 step_opencode() {
   clear
   log "▰▰▰▰▰▱▱▱  [5/9] 🤖 OpenCode..."
-  
-  if have opencode; then 
+
+  if have opencode; then
     ok "✅ OpenCode already installed"
     return
   fi
 
-  log "⏳ Downloading OpenCode Linux ARM64 binary (~80MB)..."
+  log "⏳ Installing OpenCode Linux ARM64 binary via npm pack..."
   local OC_DIR="$HOME/.opencode/bin"
   local OC_VER
   OC_VER=$(npm view opencode-linux-arm64 version 2>/dev/null) || OC_VER="1.19.5"
-  
+
   mkdir -p "$OC_DIR"
   rm -rf "$TMPDIR/oc" && mkdir -p "$TMPDIR/oc" && cd "$TMPDIR/oc"
-  
+
   if npm pack --silent "opencode-linux-arm64@$OC_VER" >/dev/null 2>&1; then
     tar xzf "opencode-linux-arm64-$OC_VER.tgz"
     mv -f package/bin/opencode "$OC_DIR/opencode-linux"
     chmod +x "$OC_DIR/opencode-linux"
-    
-    # Create wrapper for Termux (using grun)
+
     cat > "$PREFIX/bin/opencode" << 'EOF'
 #!/data/data/com.termux/files/usr/bin/sh
 exec grun "$HOME/.opencode/bin/opencode-linux" "$@"
@@ -284,7 +280,7 @@ EOF
   sleep 1
 }
 
-# ── [6] Android SDK ───────────────────────────────────────
+# ── [6] Android SDK & Wrapper ─────────────────────────────
 step_android_sdk() {
   clear
   log "▰▰▰▰▰▰▱▱  [6/9] ⚙️  Android SDK..."
@@ -316,12 +312,12 @@ step_android_sdk() {
       2>&1 | tee "$FORGE_DIR/sdk_download.log" || die "❌ sdkmanager install fail"
   fi
 
-  # Symlink ARM binaries (Crucial fix)
+  # Patch ARM binaries
   log "🔗 Patching build-tools with Termux ARM binaries..."
   local BT="$ANDROID_SDK/build-tools/$BUILD_TOOLS_VER"
   for t in aapt aapt2 aidl zipalign apksigner; do
-    if [ -e "$BT/$t" ] && command -v "$t" >/dev/null; then 
-      ln -sf "$(command -v $t)" "$BT/$t" 
+    if [ -e "$BT/$t" ] && command -v "$t" >/dev/null; then
+      ln -sf "$(command -v $t)" "$BT/$t"
     fi
   done
 
@@ -336,6 +332,21 @@ org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
 org.gradle.vfs.watch=false
 kotlin.daemon.jvmargs=-Xmx1024m
 EOF
+
+  # Pre-generate Gradle Wrapper (Crucial Fix)
+  log "⚙️  Generating Gradle Wrapper ($GRADLE_VER) template..."
+  local WR="$FORGE_DIR/wrapper-gen"
+  rm -rf "$WR"; mkdir -p "$WR" && cd "$WR"
+  touch settings.gradle
+  gradle -q wrapper --gradle-version "$GRADLE_VER" --no-daemon >/dev/null 2>&1 || true
+  if [ -f "$WR/gradlew" ]; then
+    rm -rf "$FORGE_DIR/wrapper" && mkdir -p "$FORGE_DIR/wrapper"
+    cp -r "$WR/gradlew" "$WR/gradle" "$FORGE_DIR/wrapper/"
+    ok "✓ Gradle wrapper template ready"
+  else
+    warn "⚠ Wrapper template generation failed. Using system gradle."
+  fi
+  cd "$HOME"
 
   [[ -f "$ANDROID_SDK/platforms/$SDK_PLATFORM/android.jar" ]] \
     && ok "✅ android.jar mila" || warn "🔔 android.jar nahi mila"
@@ -427,24 +438,25 @@ EOF
     echo "sdk.dir=$ANDROID_SDK" > "$lp"
   fi
 
-  # Safe Gradle Wrapper Generation
-  local WR="$TMPDIR/wrapper-gen"
-  rm -rf "$WR"; mkdir -p "$WR" && cd "$WR"
-  touch settings.gradle
-  gradle -q wrapper --gradle-version "$GRADLE_VER" >/dev/null 2>&1 || true
-  
-  if [ -f "$WR/gradlew" ]; then
-    cp -r "$WR/gradlew" "$WR/gradle" "$TEST_APP/"
-    rm -rf "$FORGE_DIR/wrapper" && mkdir -p "$FORGE_DIR/wrapper"
-    cp -r "$WR/gradlew" "$WR/gradle" "$FORGE_DIR/wrapper/"
-    ok "✓ Gradle wrapper ready"
-  else
-    warn "⚠ Wrapper generation failed"
+  # Copy pre-generated wrapper to project
+  if [ -f "$FORGE_DIR/wrapper/gradlew" ]; then
+    log "📋 Copying Gradle wrapper to project..."
+    cp -r "$FORGE_DIR/wrapper/gradlew" "$FORGE_DIR/wrapper/gradle" "$TEST_APP/"
   fi
   cd "$TEST_APP"
 
+  # Use wrapper if available, else system gradle
+  local gradle_cmd="gradle"
+  if [ -f "./gradlew" ]; then
+    chmod +x ./gradlew
+    gradle_cmd="./gradlew"
+    ok "✓ Using gradlew"
+  else
+    ok "✓ Using system gradle"
+  fi
+
   log "⏳ Building APK... (First time 3-5 mins lagenge)"
-  if ./gradlew assembleDebug --no-daemon > "$FORGE_DIR/build.log" 2>&1; then
+  if $gradle_cmd assembleDebug --no-daemon > "$FORGE_DIR/build.log" 2>&1; then
     ok "✅ Test APK ready"
     local apk="$TEST_APP/app/build/outputs/apk/debug/app-debug.apk"
     [[ -f "$apk" ]] && ok "📲 APK → $apk" || warn "🔔 APK file not found"
@@ -469,15 +481,19 @@ case "${1:-help}" in
   build)
     cd "${2:-$HOME/hello-forge}"
     shift 2 2>/dev/null || shift
-    exec ./gradlew assembleDebug --no-daemon "$@" 2>/dev/null || exec gradle assembleDebug --no-daemon "$@"
+    if [ -f "./gradlew" ]; then
+      exec ./gradlew assembleDebug --no-daemon "$@"
+    else
+      exec gradle assembleDebug --no-daemon "$@"
+    fi
     ;;
   sdk)    exec sdkmanager --sdk_root="$ANDROID_HOME" "${@:2}" ;;
   ai)     exec opencode ;;
   doctor) exec bash "$HOME/.local/share/termux-forge/forge.sh" --doctor ;;
-  version) echo "termux-forge v5.0.0" ;;
+  version) echo "termux-forge v5.2.0" ;;
   *) cat <<'EOF'
 ╔══════════════════════════════════════════╗
-║  ⚒️  FORGE CLI v5.0                      ║
+║  ⚒️  FORGE CLI v5.2                      ║
 ╠══════════════════════════════════════════╣
 ║  ➜ forge build [dir]   Build APK         ║
 ║  ➜ forge sdk [args]    sdkmanager        ║
