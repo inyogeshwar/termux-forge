@@ -90,6 +90,7 @@ pkg_install() {
   [[ ${#missing[@]} -eq 0 ]] && return 0
   
   log "📦 Installing: ${missing[*]}"
+  log "⏳ Downloading packages... (Screen par progress dikhega, please wait)"
   
   mkdir -p "$FORGE_DIR"
   local log_file="$FORGE_DIR/pkg_install.log"
@@ -97,7 +98,8 @@ pkg_install() {
 
   # Retry logic (3 baar try karega network issue ke liye)
   for attempt in {1..3}; do
-    if pkg install -y "${missing[@]}" > "$log_file" 2>&1; then
+    # 'tee' command se user ko screen par live progress dikhega aur log file bhi banegi
+    if pkg install -y "${missing[@]}" 2>&1 | tee "$log_file"; then
       ok "✓ Packages install ho gaye"
       return 0
     fi
