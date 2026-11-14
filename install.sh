@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  🚀 TERMUX-FORGE — Bootstrap Installer v4.0              ║
+# ║  🚀 TERMUX-FORGE — Bootstrap Installer v4.1              ║
 # ║  ⚒️  forge anything on Termux                             ║
+# ║  👤 github.com/inyogeshwar                               ║
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 
@@ -10,6 +11,7 @@ REPO_NAME="${FORGE_REPO_NAME:-termux-forge}"
 BRANCH="${FORGE_BRANCH:-main}"
 DEST="$HOME/.local/share/termux-forge"
 
+# Colors
 R=$'\033[0m'; B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'
 BL=$'\033[34m'; RE=$'\033[31m'; CY=$'\033[36m'; MG=$'\033[35m'
 
@@ -17,29 +19,29 @@ log()  { printf '%s➜%s %s\n' "$BL$B" "$R" "$*"; }
 ok()   { printf '%s✓%s %s\n' "$G" "$R" "$*"; }
 die()  { printf '%s✗%s %s\n' "$RE" "$R" "$*" >&2; exit 1; }
 
-# Screen clear karo shuru mein
 clear
 
-# ✅ FIX: Mobile-friendly compact banner
+# Banner
 cat <<EOF
 ${CY}┌────────────────────────────────────┐${R}
-${CY}│${R}  ${MG}${B}⚒️  TERMUX-FORGE  v4.0${R}            ${CY}│${R}
+${CY}│${R}  ${MG}${B}🚀 TERMUX-FORGE  v4.1${R}             ${CY}│${R}
 ${CY}├────────────────────────────────────┤${R}
 ${CY}│${R}  ${BL}👤 inyogeshwar${R}                     ${CY}│${R}
-${CY}│${R}  ${Y}🚀 Forge anything on Termux${R}        ${CY}│${R}
+${CY}│${R}  ${Y}⚒️  Forge anything on Termux${R}        ${CY}│${R}
 ${CY}└────────────────────────────────────┘${R}
 EOF
 
+# Termux check
 [[ -n "${TERMUX_VERSION:-}" || "${PREFIX:-}" == *"com.termux"* ]] \
   || die "⛔ Yeh script sirf Termux (Android) ke liye hai."
 
+# Git check
 command -v git >/dev/null 2>&1 || {
-  log "📦 git install ho raha hai (please wait)..."
+  log "📦 git install ho raha hai..."
   pkg install -y git | tee "$HOME/git_install.log"
 }
 
-# ... (baaki script same rahegi)
-
+# Clone or update
 if [[ -d "$DEST/.git" ]]; then
   log "🔄 Existing install update ho raha hai..."
   git -C "$DEST" fetch origin "$BRANCH" --quiet

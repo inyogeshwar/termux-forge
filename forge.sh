@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  ⚒️  TERMUX-FORGE — Main Setup v4.0                       ║
-# ║  🎯 OpenCode + Claude + Android SDK + APK Build          ║
+# ║  ⚒️  TERMUX-FORGE — Main Setup v4.1 (Full Fixed)          ║
+# ║  🎯 OpenCode + Android SDK + APK Build                   ║
 # ║  👤 github.com/inyogeshwar                               ║
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 
 # ── Config ────────────────────────────────────────────────
-readonly FORGE_VERSION="4.0.0"
-readonly GRADLE_VER="8.9"
+readonly FORGE_VERSION="4.1.0"
+readonly GRADLE_VER="8.7"
 readonly SDK_PLATFORM="android-35"
 readonly BUILD_TOOLS_VER="35.0.0"
 readonly CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
@@ -36,14 +36,14 @@ warn() { printf '%s⚠%s %s\n' "$Y" "$R" "$*" >&2; }
 die()  { printf '%s✗%s %s\n' "$RE" "$R" "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# ── Banner ────────────────────────────────────────────────
+# ── Mobile-Friendly Banner ────────────────────────────────
 banner() {
 clear
 cat <<EOF
 ${CY}┌────────────────────────────────────┐${R}
 ${CY}│${R}  ${MG}${B}⚒️  T E R M U X - F O R G E${R}       ${CY}│${R}
 ${CY}├────────────────────────────────────┤${R}
-${CY}│${R}  ${G}🎯 v4.0${R}   ${CY}│${R}   ${Y}🤖 OpenCode${R}   ${CY}│${R}   ${BL}⚙️ SDK${R}  ${CY}│${R}
+${CY}│${R}  ${G}🎯 v${FORGE_VERSION}${R}  ${CY}│${R}  ${Y}🤖 OpenCode${R}  ${CY}│${R}  ${BL}⚙️ SDK${R} ${CY}│${R}
 ${CY}│${R}  ${BL}👤 github.com/inyogeshwar${R}          ${CY}│${R}
 ${CY}└────────────────────────────────────┘${R}
 EOF
@@ -59,7 +59,6 @@ ask_name() {
   else
     printf '\n%s┌──────────────────────────────────────────────┐%s\n' "$CY" "$R"
     printf '%s│%s  🖊️  Apna naam likho (banner ke liye)          %s│%s\n' "$CY" "$R" "$CY" "$R"
-    printf '%s│%s  📝 Example: Yogesh, Forge, Dev                %s│%s\n' "$CY" "$R" "$CY" "$R"
     printf '%s└──────────────────────────────────────────────┘%s\n' "$CY" "$R"
     printf '➜ Your Name: '
     read -r name </dev/tty || name="Forge"
@@ -90,9 +89,7 @@ pkg_install() {
   local log_file="$FORGE_DIR/pkg_install.log"
   local attempt
 
-  # Retry logic
   for attempt in {1..3}; do
-    # 'tee' live progress dikhata hai
     if pkg install -y "${missing[@]}" 2>&1 | tee "$log_file"; then
       ok "✓ Packages installed successfully."
       return 0
@@ -112,7 +109,7 @@ has_storage() { [[ -d "$HOME/storage" ]]; }
 # ── [1] Storage ───────────────────────────────────────────
 step_storage() {
   clear
-  log "▰▱▱▱▱▱▱▱  [1/8] 🔐 Storage access..."
+  log "▰▱▱▱▱▱▱▱  [1/7] 🔐 Storage access..."
   if has_storage; then ok "✅ Storage mil gaya"; return; fi
   termux-setup-storage >/dev/null 2>&1 || true
   local i
@@ -124,7 +121,7 @@ step_storage() {
 # ── [2] Update ────────────────────────────────────────────
 step_update() {
   clear
-  log "▰▰▱▱▱▱▱▱  [2/8] 🔄 System update..."
+  log "▰▰▱▱▱▱▱▱  [2/7] 🔄 System update..."
   log "⏳ Please wait, updating system..."
   pkg update -y 2>&1 | tee -a "$FORGE_DIR/pkg_update.log" >/dev/null || true
   pkg upgrade -y 2>&1 | tee -a "$FORGE_DIR/pkg_update.log" >/dev/null || true
@@ -132,18 +129,16 @@ step_update() {
   sleep 1
 }
 
-# ── [3] Packages (glibc-runner sequence fixed) ────────────
+# ── [3] Packages ──────────────────────────────────────────
 step_packages() {
   clear
-  log "▰▰▰▱▱▱▱▱  [3/8] 📦 Base packages..."
+  log "▰▰▰▱▱▱▱▱  [3/7] 📦 Base packages..."
   
-  # 1. Normal packages
   pkg_install \
-    git curl wget unzip nano zsh toilet ruby \
+    git curl wget unzip nano zsh toilet ruby figlet speedtest-cli \
     nodejs openjdk-17 gradle \
     aapt aapt2 apksigner
 
-  # 2. glibc-repo (Alag se, taaki update trigger ho)
   if ! dpkg -s glibc-repo >/dev/null 2>&1; then
     log "📦 Adding glibc repository..."
     pkg install -y glibc-repo 2>&1 | tee -a "$FORGE_DIR/pkg_install.log"
@@ -151,7 +146,6 @@ step_packages() {
     pkg update -y >/dev/null 2>&1 || true
   fi
 
-  # 3. glibc-runner (Ab yeh mil jayega)
   if ! dpkg -s glibc-runner >/dev/null 2>&1; then
     pkg_install glibc-runner
   fi
@@ -163,10 +157,10 @@ step_packages() {
   sleep 1
 }
 
-# ── [4] Shell ─────────────────────────────────────────────
+# ── [4] Shell & Zshrc ─────────────────────────────────────
 step_shell() {
   clear
-  log "▰▰▰▰▱▱▱▱  [4/8] 🐚 Oh My Zsh + Powerlevel10k..."
+  log "▰▰▰▰▱▱▱▱  [4/7] 🐚 Oh My Zsh + Powerlevel10k..."
   log "⏳ Setting up terminal environment..."
 
   if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
@@ -187,6 +181,7 @@ step_shell() {
     cat >> "$HOME/.zshrc" <<'ZSHRC'
 
 # ── FORGE_ZSHRC — managed block ───────────────────────────
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"
 plugins=(git zsh-autosuggestions)
@@ -194,6 +189,12 @@ source $ZSH/oh-my-zsh.sh
 
 [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
 command -v lolcat >/dev/null && alias lc='lolcat'
+
+# Forge env variables
+export ANDROID_SDK_ROOT="$HOME/android-sdk"
+export ANDROID_HOME="$HOME/android-sdk"
+export JAVA_HOME="${PREFIX}/lib/jvm/java-17-openjdk"
+export PATH="$PATH:$HOME/.opencode/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/35.0.0"
 ZSHRC
   fi
 
@@ -204,10 +205,10 @@ ZSHRC
   sleep 1
 }
 
-# ── [5] OpenCode (Fixed URL + NPM Fallback) ───────────────
+# ── [5] OpenCode (Robust Installer) ───────────────────────
 step_opencode() {
   clear
-  log "▰▰▰▰▰▱▱▱  [5/8] 🤖 OpenCode..."
+  log "▰▰▰▰▰▱▱▱  [5/7] 🤖 OpenCode..."
   
   if have opencode; then 
     ok "✅ OpenCode already installed"
@@ -216,29 +217,37 @@ step_opencode() {
 
   log "⏳ Downloading OpenCode... (Live progress below)"
 
-  # 1. Official v2 URL (without .sh)
+  # 1. Official v2 URL
   if curl -fsSL https://opencode.ai/install | bash; then
     ok "✅ OpenCode installed (official script)"
     return
   fi
 
-  warn "⚠️ Official install script fail hua, npm se try kar rahe hain..."
+  warn "⚠️ Official install script fail hua, alternative method try kar rahe hain..."
   sleep 1
   
-  # 2. Fallback via npm (Node.js already installed)
-  if npm install -g opencode-ai >/dev/null 2>&1; then
-    ok "✅ OpenCode installed (via npm)"
-    return
+  # 2. Fallback: Binary download from GitHub Releases (Termux compatible)
+  local OPENCODE_URL="https://github.com/sst/opencode/releases/latest/download/opencode-linux-arm64"
+  local INSTALL_DIR="$HOME/.opencode/bin"
+  mkdir -p "$INSTALL_DIR"
+  
+  if curl -fsSL "$OPENCODE_URL" -o "$INSTALL_DIR/opencode"; then
+    chmod +x "$INSTALL_DIR/opencode"
+    export PATH="$PATH:$INSTALL_DIR"
+    if have opencode; then
+      ok "✅ OpenCode installed (binary)"
+      return
+    fi
   fi
   
-  warn "🔔 OpenCode install nahi ho paya, 'forge ai' baad me try karo"
+  warn "🔔 OpenCode install nahi ho paya. Aap manually 'curl -fsSL https://opencode.ai/install | bash' chala sakte hain."
   sleep 1
 }
 
 # ── [6] Android SDK ───────────────────────────────────────
 step_android_sdk() {
   clear
-  log "▰▰▰▰▰▰▱▱  [6/8] ⚙️  Android SDK..."
+  log "▰▰▰▰▰▰▱▱  [6/7] ⚙️  Android SDK..."
   [[ "$SKIP_ANDROID" == "1" ]] && { warn "⏭️  Android SDK skipped"; return; }
 
   export JAVA_HOME="${PREFIX}/lib/jvm/java-17-openjdk"
@@ -257,6 +266,7 @@ step_android_sdk() {
     log "📦 Extracting..."
     unzip -q "$zip" -d "$ANDROID_SDK/cmdline-tools"
     mv "$ANDROID_SDK/cmdline-tools/cmdline-tools" "$ANDROID_SDK/cmdline-tools/latest"
+    rm -f "$zip"
   fi
 
   yes | "$sdkmanager" --sdk_root="$ANDROID_SDK" --licenses >/dev/null 2>&1 || true
@@ -276,27 +286,16 @@ step_android_sdk() {
   grep -q "aapt2FromMavenOverride" "$HOME/.gradle/gradle.properties" 2>/dev/null \
     || echo "android.aapt2FromMavenOverride=$aapt2_bin" >> "$HOME/.gradle/gradle.properties"
 
-  if ! grep -q "FORGE_ANDROID_ENV" "$HOME/.zshrc" 2>/dev/null; then
-    cat >> "$HOME/.zshrc" <<ENV
-
-# ── FORGE_ANDROID_ENV ─────────────────────────────────────
-export ANDROID_HOME="$ANDROID_SDK"
-export ANDROID_SDK_ROOT="$ANDROID_SDK"
-export JAVA_HOME="$JAVA_HOME"
-export PATH="\$ANDROID_HOME/platform-tools:\$ANDROID_HOME/cmdline-tools/latest/bin:\$PATH"
-ENV
-  fi
-
   [[ -f "$ANDROID_SDK/platforms/$SDK_PLATFORM/android.jar" ]] \
     && ok "✅ android.jar mila" || warn "🔔 android.jar nahi mila"
   ok "✅ Android SDK ready"
   sleep 1
 }
 
-# ── [7] Test APK (Fixed Gradle Settings) ──────────────────
+# ── [7] Test APK Build (Fixed) ────────────────────────────
 step_test_apk() {
   clear
-  log "▰▰▰▰▰▰▰▱  [7/8] 🎯 Test APK build..."
+  log "▰▰▰▰▰▰▰▱  [7/7] 🎯 Test APK build..."
   [[ "$SKIP_ANDROID" == "1" || "$SKIP_TEST_APK" == "1" ]] && { warn "⏭️  Test APK skipped"; return; }
 
   export JAVA_HOME="${PREFIX}/lib/jvm/java-17-openjdk"
@@ -307,13 +306,20 @@ step_test_apk() {
     log "🏗️  Creating sample project: $TEST_APP"
     mkdir -p "$TEST_APP/app/src/main/java/com/forge/hello"
 
-    # ✅ FIX: PluginManagement block add kiya
+    # ✅ FIX: Plugin Management Block for Gradle 8+
     cat > "$TEST_APP/settings.gradle" <<'EOF'
 pluginManagement {
     repositories {
         google()
         mavenCentral()
         gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
     }
 }
 rootProject.name = "hello-forge"
@@ -384,9 +390,15 @@ EOF
     ok "🔧 local.properties created → sdk.dir=$ANDROID_SDK"
   fi
 
+  # ✅ FIX: Ensure Gradle Wrapper is used for correct version
   local gradle_cmd
+  if [[ ! -f "$TEST_APP/gradlew" ]]; then
+    log "⚙️  Generating Gradle wrapper ($GRADLE_VER)..."
+    (cd "$TEST_APP" && gradle wrapper --gradle-version "$GRADLE_VER" --no-daemon >/dev/null 2>&1) || true
+  fi
+
   if [[ -x "$TEST_APP/gradlew" ]]; then
-    gradle_cmd="$TEST_APP/gradlew"; ok "✓ gradlew detected"
+    gradle_cmd="./gradlew"; ok "✓ gradlew detected (Gradle $GRADLE_VER)"
   else
     gradle_cmd="gradle"; ok "✓ Using system gradle (wrapper skip)"
   fi
@@ -418,15 +430,15 @@ case "${1:-help}" in
   build)
     cd "${2:-$HOME/hello-forge}"
     shift 2 2>/dev/null || shift
-    exec gradle assembleDebug --no-daemon "$@"
+    exec ./gradlew assembleDebug --no-daemon "$@" 2>/dev/null || exec gradle assembleDebug --no-daemon "$@"
     ;;
   sdk)    exec sdkmanager --sdk_root="$ANDROID_HOME" "${@:2}" ;;
   ai)     exec opencode ;;
   doctor) exec bash "$HOME/.local/share/termux-forge/forge.sh" --doctor ;;
-  version) echo "termux-forge v4.0.0" ;;
+  version) echo "termux-forge v4.1.0" ;;
   *) cat <<'EOF'
 ╔══════════════════════════════════════════╗
-║  ⚒️  FORGE CLI v4.0                      ║
+║  ⚒️  FORGE CLI v4.1                      ║
 ╠══════════════════════════════════════════╣
 ║  ➜ forge build [dir]   Build APK         ║
 ║  ➜ forge sdk [args]    sdkmanager        ║
@@ -500,9 +512,6 @@ ${CY}➜ Aage yeh use karo:${R}
 
 ${CY}📲 APK path:${R}
   ${BL}~/hello-forge/app/build/outputs/apk/debug/app-debug.apk${R}
-
-${CY}🚀 Install:${R}
-  ${BL}termux-open ~/hello-forge/app/build/outputs/apk/debug/app-debug.apk${R}
 
 ${MG}👤 github.com/inyogeshwar${R}
 EOF
