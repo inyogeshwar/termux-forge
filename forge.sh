@@ -138,13 +138,36 @@ step_update() {
 # ── [3] Packages ──────────────────────────────────────────
 step_packages() {
   log "▰▰▰▱▱▱▱▱  [3/8] 📦 Base packages..."
+
+  # 1. Pehle normal packages install karo
   pkg_install \
     git curl wget unzip nano zsh toilet ruby \
     nodejs openjdk-17 gradle \
-    aapt aapt2 apksigner glibc-repo glibc-runner
+    aapt aapt2 apksigner
+
+  # 2. glibc-repo ko alag se install karo
+  log "📦 Adding glibc repository..."
+  if ! dpkg -s glibc-repo >/dev/null 2>&1; then
+    pkg install -y glibc-repo >/dev/null 2>&1 || warn "🔔 glibc-repo install fail"
+  fi
+
+  # 3. Ab package lists refresh karo taaki glibc-runner detect ho sake
+  log "🔄 Updating package lists for glibc..."
+  pkg update -y >/dev/null 2>&1 || true
+
+  # 4. Ab glibc-runner install karo
+  if ! dpkg -s glibc-runner >/dev/null 2>&1; then
+    if ! pkg install -y glibc-runner >/dev/null 2>&1; then
+      warn "⚠️ glibc-runner install fail hua, retry..."
+      pkg update -y >/dev/null 2>&1 || true
+      pkg install -y glibc-runner >/dev/null 2>&1 || warn "❌ glibc-runner install nahi ho paya"
+    fi
+  fi
+
   if ! have lolcat; then
     gem install lolcat >/dev/null 2>&1 || warn "🔔 lolcat install fail (cosmetic)"
   fi
+
   ok "✅ Packages ready"
 }
 
