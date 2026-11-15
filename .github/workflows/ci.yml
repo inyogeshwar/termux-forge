@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax check
+        run: |
+          for f in forge.sh install.sh uninstall.sh tests/smoke.sh; do bash -n "$f"; done
+
+      - name: ShellCheck (warnings fail the build)
+        run: shellcheck -S warning install.sh forge.sh uninstall.sh tests/smoke.sh
+
+      - name: Smoke tests
+        run: bash tests/smoke.sh

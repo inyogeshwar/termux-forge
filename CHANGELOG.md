@@ -1,0 +1,36 @@
+# Changelog
+
+## 7.0.0 — 2026-11-15
+
+### 🚨 Critical fixes
+- **`forge.sh` syntax error fix** — `pkg_install` me `\vert{}` (galti se `||` / `|` ki jagah) tha, jis se script chalti hi nahi thi. v6.5.0 ka `.deb` bhi isse broken tha.
+- `step_finalize` ab same-file `cp` par crash nahi karta (install.sh flow me `forge` command ban hi nahi paati thi).
+- Icon command ab manifest me `android:icon` bhi lagata hai (pehle icons ban jaate the par app me use nahi hote the).
+- Label me `&`, `<`, `"` ab XML-escape hote hain (pehle manifest invalid ho jaata tha).
+- Package change nested sub-packages (`com.x.y.ui`) ko flatten nahi karta.
+- `.deb` ke `postinst` me version ab sahi dikhta hai.
+- CI ab sach me fail hota hai (pehle ShellCheck `|| true` se ignore hota tha).
+
+### 🔐 Security
+- Keystore ka password ab **random** (pehle sabke liye `forgerelease` public tha). Purane keystore backward-compatible.
+- Uninstall ab release keystore ko **delete nahi karta** (sirf `--purge` se).
+- `keystore.properties` permission `600`.
+
+### ✨ New
+- Naye commands: `list`, `rename`, `bump`, `clean`, `backup`, `install`, `keystore [info|backup|new]`, `update`, `info`.
+- `forge create` flags: `--template`, `--name`, `--package`, `--url`, `--git` (non-interactive).
+- **WebView template** (website → app).
+- `forge build -i` (build + install), project auto-detect (current folder), `forge build` ke baad APK size/path.
+- Export file names me version: `my-app-1.0.1-release.apk`.
+- Zsh TAB completion; zshrc block ab har setup par refresh hota hai.
+- Setup flags: `--yes --name --skip-android --skip-ai --skip-shell --speedtest`.
+- Stable `.deb` link: `releases/latest/download/termux-forge-latest.deb`.
+- 60+ automated smoke tests + ShellCheck CI; release workflow `.deb` banane se pehle tests chalata hai.
+
+### 🧹 Changed
+- Speed test ab opt-in (`--speedtest`); python ab base packages me nahi (kam download).
+- Banner layout fix, doctor me double ✓ hata, README table fix.
+- Default `versionName` template me `1.0.0`.
+
+## 6.5.0
+- `.deb` package support, GitHub Releases automation.

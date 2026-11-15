@@ -17,14 +17,22 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Fix Line Endings (CRLF -> LF)
+      - name: Fix line endings (CRLF -> LF)
+        run: find . -type f \( -name "*.sh" -o -name "*.yml" \) -not -path "./.git/*" -exec sed -i 's/\r$//' {} +
+
+      - name: Verify scripts (syntax + ShellCheck + smoke tests)
         run: |
-          find . -type f -name "*.sh" -exec sed -i 's/\r$//' {} +
+          for f in forge.sh install.sh uninstall.sh; do bash -n "$f"; done
+          shellcheck -S warning forge.sh install.sh uninstall.sh
+          bash tests/smoke.sh
 
       - name: Build Termux .deb Package
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          [[ "$VERSION" == "$GITHUB_REF" ]] && VERSION="6.5.0"
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
+            VERSION="$(sed -nE 's/^readonly FORGE_VERSION="([^"]+)".*/\1/p' forge.sh)"
+          fi
+          echo "Building version: $VERSION"
 
           PKG_DIR="termux-forge_${VERSION}_all"
           BIN_DIR="$PKG_DIR/data/data/com.termux/files/usr/bin"
@@ -32,44 +40,48 @@ jobs:
 
           mkdir -p "$PKG_DIR/DEBIAN" "$BIN_DIR" "$SHARE_DIR"
 
-          cp forge.sh "$SHARE_DIR/forge.sh"
-          cp uninstall.sh "$SHARE_DIR/uninstall.sh"
+          cp forge.sh uninstall.sh "$SHARE_DIR/"
           chmod 755 "$SHARE_DIR/forge.sh" "$SHARE_DIR/uninstall.sh"
 
-          # Main 'forge' command wrapper
-          cat <<'EOF' > "$BIN_DIR/forge"
+          # 'forge' command wrapper
+          cat <<'WRAP' > "$BIN_DIR/forge"
           #!/data/data/com.termux/files/usr/bin/bash
           exec bash "${PREFIX:-/data/data/com.termux/files/usr}/share/termux-forge/forge.sh" --cli "$@"
-          EOF
+          WRAP
           chmod 755 "$BIN_DIR/forge"
 
-          # DEBIAN/control
-          cat <<EOF > "$PKG_DIR/DEBIAN/control"
+          cat <<CTRL > "$PKG_DIR/DEBIAN/control"
           Package: termux-forge
           Version: $VERSION
           Architecture: all
+          Section: utils
+          Priority: optional
           Maintainer: Yogeshwar Kumar <inyogeshwar@users.noreply.github.com>
-          Depends: bash, git, curl, unzip, zsh, toilet
+          Depends: bash, git, curl, unzip, tar, zsh, toilet
           Homepage: https://github.com/inyogeshwar/termux-forge
-          Description: AI-powered Android APK/AAB builder & OpenCode environment for Termux.
-          EOF
+          Description: AI-powered Android APK/AAB builder and OpenCode environment for Termux.
+           Create, build, sign and ship Android apps entirely from your phone.
+          CTRL
 
-          # Post-install message
-          cat <<'EOF' > "$PKG_DIR/DEBIAN/postinst"
+          cat <<POST > "$PKG_DIR/DEBIAN/postinst"
           #!/data/data/com.termux/files/usr/bin/bash
           echo ""
-          echo "⚒️  termux-forge v${VERSION} successfully installed!"
+          echo "⚒️  termux-forge v$VERSION successfully installed!"
           echo "➜ Run 'forge setup' to install Android SDK, Zsh & OpenCode."
-          echo "➜ Run 'forge help' to see all available commands."
+          echo "➜ Run 'forge help' to see all commands."
           echo ""
-          EOF
+          POST
           chmod 755 "$PKG_DIR/DEBIAN/postinst"
 
           dpkg-deb --build "$PKG_DIR"
+          # stable-named copy => README ka "latest" link hamesha kaam kare
+          cp "termux-forge_${VERSION}_all.deb" termux-forge-latest.deb
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: termux-forge_*_all.deb
+          files: |
+            termux-forge_*_all.deb
+            termux-forge-latest.deb
           generate_release_notes: true
