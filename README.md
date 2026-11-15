@@ -94,13 +94,19 @@ Setup ke baad Termux restart karo (`exit` → dobara kholo, ya `exec zsh`) aur c
 forge doctor
 ```
 
+> **OpenCode:** Forge naye install ko phone-tested **OpenCode 1.19.5** par set karta hai (v2 ke liye alag launcher zaroori hai). Agar OpenCode setup se fail ho, to:
+> ```bash
+> forge setup --skip-android --skip-shell
+> forge doctor
+> ```
+
 <details>
 <summary><b>Setup ke options</b></summary>
 
 | Option | Kaam |
 |---|---|
 | `--yes`, `-y` | Koi sawaal nahi poochega |
-| `--name NAME` | Terminal banner ka naam |
+| `--name NAME` | Terminal banner aur prompt ka naam |
 | `--skip-android` | Android SDK skip (sirf shell/AI chahiye to) |
 | `--skip-ai` | OpenCode skip |
 | `--skip-shell` | Zsh / Oh My Zsh skip |
@@ -116,6 +122,9 @@ setup wala naam aur short current folder aata hai; command next line par likho.
 Nerd Font ki zaroorat nahi, aur `user@localhost` / right-side clock nahi aata.
 `forge help` aur project list me descriptions alag lines par hain.
 
+Naam `~/.forge/.name` se aata hai (naam na ho to `Forge`). Personal
+`~/.p10k.zsh` file preserve hoti hai; Forge ka prompt ab use load nahi karta.
+
 Updated source se **sirf shell layout** apply karna ho (SDK setup dobara nahi):
 repo folder me ye chalao:
 
@@ -123,9 +132,6 @@ repo folder me ye chalao:
 bash -c 'source ./forge.sh; write_zshrc_block'
 exec zsh
 ```
-
-Naam `~/.forge/.name` se aata hai (naam na ho to `Forge`). Personal
-`~/.p10k.zsh` file preserve hoti hai; Forge ka prompt ab use load nahi karta.
 
 ---
 
