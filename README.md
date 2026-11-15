@@ -195,4 +195,4 @@ curl -fsSL [https://raw.githubusercontent.com/inyogeshwar/termux-forge/main/unin
 
 [`GitHub`](https://github.com/inyogeshwar) · [`Website`](https://inyogeshwar.co.in)
 
-**⭐ Agar pasand aaya to star dena mat bhoolna! ⭐**
+**⭐ Agar pasand aaya to star dena mat bhoolna! ⭐**v
