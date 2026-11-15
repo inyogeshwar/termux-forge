@@ -48,6 +48,12 @@ warn() { printf '%s⚠%s %s\n' "$Y" "$R" "$*" >&2; }
 die()  { printf '%s✗%s %s\n' "$RE" "$R" "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# OpenCode needs the glibc binary, the wrapper and Termux's glibc-runner.
+opencode_bin() { printf '%s\n' "$HOME/.opencode/bin/opencode-linux"; }
+opencode_ok() {
+  [[ -x "$(opencode_bin)" ]] && [[ -x "$PREFIX/bin/opencode" ]] && have grun
+}
+
 ui_clear() { if [[ -t 1 ]]; then clear; fi; }
 pause()    { if [[ -t 1 ]]; then sleep 1; fi; }
 
@@ -383,31 +389,53 @@ step_shell() {
   pause
 }
 
+install_opencode() {
+  local ver="$OPENCODE_VER" oc_dir="$HOME/.opencode/bin" work url
+  if ! have grun; then
+    pkg_install glibc-repo || true
+    pkg_install glibc-runner || true
+  fi
+  have grun || { warn "glibc-runner install fail"; return 1; }
+
+  work="$TMPDIR/oc"; rm -rf "$work"; mkdir -p "$work" "$oc_dir"
+  # npm pack rejects a linux-only package on Termux; fetch the tarball directly.
+  url="https://registry.npmjs.org/opencode-linux-arm64/-/opencode-linux-arm64-${ver}.tgz"
+  if ! curl -fsSL "$url" -o "$work/oc.tgz" || ! tar xzf "$work/oc.tgz" -C "$work"; then
+    warn "OpenCode v$ver download fail (internet check karo)"
+    rm -rf "$work"; return 1
+  fi
+  if [[ ! -f "$work/package/bin/opencode" ]]; then
+    warn "OpenCode package me binary nahi mila"
+    rm -rf "$work"; return 1
+  fi
+
+  mv -f "$work/package/bin/opencode" "$oc_dir/opencode-linux"
+  chmod +x "$oc_dir/opencode-linux"
+  install_opencode_wrapper
+  rm -rf "$work"
+  ok "OpenCode v$ver installed"
+  return 0
+}
+
+install_opencode_wrapper() {
+  mkdir -p "$PREFIX/bin"
+  cat > "$PREFIX/bin/opencode" <<'EOF'
+#!/data/data/com.termux/files/usr/bin/sh
+# Termux exports libtermux-exec via LD_PRELOAD, which crashes glibc binaries.
+unset LD_PRELOAD
+exec grun "$HOME/.opencode/bin/opencode-linux" "$@"
+EOF
+  chmod +x "$PREFIX/bin/opencode"
+}
+
 step_opencode() {
   step_header 5 "🤖 OpenCode..."
   if [[ "$SKIP_OPENCODE" == "1" ]]; then warn "OpenCode skipped"; return 0; fi
-  if have opencode; then ok "OpenCode already installed"; return 0; fi
+  if have opencode && opencode_ok; then ok "OpenCode already installed"; return 0; fi
 
-  local oc_dir="$HOME/.opencode/bin" ver="$OPENCODE_VER" work
-  log "Termux compatibility: OpenCode v$ver (pinned)"
-  work="$TMPDIR/oc"
-  mkdir -p "$oc_dir" "$TMPDIR"
-  rm -rf "$work"; mkdir -p "$work"
-
-  if ( cd "$work" && npm pack --silent "opencode-linux-arm64@$ver" >/dev/null 2>&1 \
-       && tar xzf "opencode-linux-arm64-$ver.tgz" ) && [[ -f "$work/package/bin/opencode" ]]; then
-    mv -f "$work/package/bin/opencode" "$oc_dir/opencode-linux"
-    chmod +x "$oc_dir/opencode-linux"
-    cat > "$PREFIX/bin/opencode" <<'EOF'
-#!/data/data/com.termux/files/usr/bin/sh
-exec grun "$HOME/.opencode/bin/opencode-linux" "$@"
-EOF
-    chmod +x "$PREFIX/bin/opencode"
-    rm -rf "$work"
-    ok "OpenCode v$ver installed"
-  else
-    warn "OpenCode install fail (arm64 device chahiye). Baad me 'forge setup' dobara chalao."
-  fi
+  log "Termux compatibility: OpenCode v$OPENCODE_VER (pinned)"
+  # A half-installed or stale wrapper (newer version) is replaced, not trusted.
+  install_opencode || warn "OpenCode install fail. 'forge doctor' se check karo."
   pause
 }
 
@@ -643,7 +671,7 @@ doctor() {
   check "java"                      'command -v java'
   check "gradle"                    'command -v gradle'
   check "aapt2"                     'command -v aapt2'
-  check "OpenCode"                  'command -v opencode'
+  check "OpenCode"                  'opencode_ok'
   check "Android SDK"               '[[ -d "$ANDROID_SDK" ]]'
   check "platforms/$SDK_PLATFORM"   '[[ -d "$ANDROID_SDK/platforms/$SDK_PLATFORM" ]]'
   check "build-tools/$BUILD_TOOLS_VER" '[[ -d "$ANDROID_SDK/build-tools/$BUILD_TOOLS_VER" ]]'
