@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  ⚒️  TERMUX-FORGE — Setup & CLI  v7.0.0                  ║
+# ║  ⚒️  TERMUX-FORGE — Setup & CLI  v7.0.1                  ║
 # ║  Termux → OpenCode → Android APK / AAB                   ║
 # ║  https://github.com/inyogeshwar/termux-forge             ║
 # ╚══════════════════════════════════════════════════════════╝
@@ -14,7 +14,8 @@ readonly KOTLIN_VER="2.0.21"
 readonly SDK_PLATFORM="android-35"
 readonly BUILD_TOOLS_VER="35.0.0"
 readonly CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
-readonly OPENCODE_FALLBACK_VER="1.19.5"
+# Tested on the user's Termux phone; v2 needs a different launcher strategy.
+readonly OPENCODE_VER="1.19.5"
 readonly PKG_RE='^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$'
 
 : "${PREFIX:=/data/data/com.termux/files/usr}"
@@ -382,9 +383,8 @@ step_opencode() {
   if [[ "$SKIP_OPENCODE" == "1" ]]; then warn "OpenCode skipped"; return 0; fi
   if have opencode; then ok "OpenCode already installed"; return 0; fi
 
-  local oc_dir="$HOME/.opencode/bin" ver work
-  ver=$(npm view opencode-linux-arm64 version 2>/dev/null) || ver="$OPENCODE_FALLBACK_VER"
-  [[ -n "$ver" ]] || ver="$OPENCODE_FALLBACK_VER"
+  local oc_dir="$HOME/.opencode/bin" ver="$OPENCODE_VER" work
+  log "Termux compatibility: OpenCode v$ver (pinned)"
   work="$TMPDIR/oc"
   mkdir -p "$oc_dir" "$TMPDIR"
   rm -rf "$work"; mkdir -p "$work"

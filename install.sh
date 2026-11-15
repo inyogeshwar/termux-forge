@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  🚀 TERMUX-FORGE — Bootstrap Installer v7.0.0            ║
+# ║  🚀 TERMUX-FORGE — Bootstrap Installer v7.0.1            ║
 # ║  curl -fsSL .../install.sh | bash                        ║
 # ║  Options: curl ... | bash -s -- --yes --name Yogeshwar   ║
 # ╚══════════════════════════════════════════════════════════╝

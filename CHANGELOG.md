@@ -6,6 +6,7 @@
 - Compact two-line Zsh prompt with saved display name and shortened path.
 - No localhost context, right-side clock or Nerd Font requirement.
 - Manual release workflow uploads a testable `.deb` artifact before tagging.
+- Pin new OpenCode installations to phone-tested 1.19.5 instead of npm latest; existing installations are preserved.
 
 ## 7.0.0 — 2026-11-15
 

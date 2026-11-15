@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  🗑️  TERMUX-FORGE — Uninstaller v7.0.0                   ║
+# ║  🗑️  TERMUX-FORGE — Uninstaller v7.0.1                   ║
 # ║  Options: --yes  --keep-sdk  --purge                     ║
 # ║  Default: release keystore SAFE rehta hai (~/.forge)     ║
 # ╚══════════════════════════════════════════════════════════╝
