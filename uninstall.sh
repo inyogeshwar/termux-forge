@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  🗑️  TERMUX-FORGE — Complete Uninstaller v6.0            ║
+# ║  🗑️  TERMUX-FORGE — Complete Uninstaller v6.2            ║
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 

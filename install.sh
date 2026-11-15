@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  🚀 TERMUX-FORGE — Bootstrap Installer v6.0              ║
+# ║  🚀 TERMUX-FORGE — Bootstrap Installer v6.2              ║
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 
@@ -19,7 +19,7 @@ die()  { printf '%s✗%s %s\n' "$RE" "$R" "$*" >&2; exit 1; }
 clear
 cat <<EOF
 ${CY}┌────────────────────────────────────┐${R}
-${CY}│${R}  ${MG}${B}⚒️  TERMUX-FORGE  v6.0${R}            ${CY}│${R}
+${CY}│${R}  ${MG}${B}⚒️  TERMUX-FORGE  v6.2${R}            ${CY}│${R}
 ${CY}├────────────────────────────────────┤${R}
 ${CY}│${R}  ${BL}👤 inyogeshwar${R}                     ${CY}│${R}
 ${CY}│${R}  ${Y}🚀 Forge anything on Termux${R}        ${CY}│${R}

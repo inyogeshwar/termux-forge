@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  ⚒️  TERMUX-FORGE — Ultimate Setup v6.0                 ║
+# ║  ⚒️  TERMUX-FORGE — Ultimate Setup v6.2                   ║
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 
-readonly FORGE_VERSION="6.0.0"
+readonly FORGE_VERSION="6.2.0"
 readonly GRADLE_VER="8.9"
 readonly AGP_VER="8.7.3"
 readonly KOTLIN_VER="2.0.21"
@@ -146,8 +146,6 @@ step_update() {
 step_packages() {
   clear
   log "▰▰▰▱▱▱▱▱  [3/9] 📦 Base packages..."
-  
-  # Added imagemagick for icon generation
   pkg_install \
     git curl wget unzip nano zsh toilet ruby figlet imagemagick \
     nodejs openjdk-17 gradle python \
@@ -307,6 +305,13 @@ EOF
     cp -r "$WR/gradlew" "$WR/gradle" "$FORGE_DIR/wrapper/"
   fi
   cd "$HOME"
+
+  # Generate Release Keystore
+  if [ ! -f "$FORGE_DIR/release.keystore" ]; then
+    log "🔐 Generating Release Keystore for signed APKs..."
+    keytool -genkey -v -keystore "$FORGE_DIR/release.keystore" -alias forgekey -keyalg RSA -keysize 2048 -validity 10000 -storepass forgerelease -keypass forgerelease -dname "CN=Forge, OU=Dev, O=Forge, L=City, ST=State, C=IN" >/dev/null 2>&1 || true
+  fi
+
   ok "✅ Android SDK ready (Patched)"
   sleep 1
 }
@@ -346,6 +351,21 @@ android {
         targetSdk 35
         versionCode 1
         versionName "1.0"
+    }
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("HOME") + "/.forge/release.keystore")
+            storePassword "forgerelease"
+            keyAlias "forgekey"
+            keyPassword "forgerelease"
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -448,43 +468,142 @@ case "${1:-help}" in
     echo "➜ Ab chalao: cd ~/$proj_name && opencode"
     ;;
 
+  import)
+    local src_path="${2:-}"
+    if [ -z "$src_path" ] || [ ! -d "$src_path" ]; then
+      echo "❌ Usage: forge import <path_to_project_in_storage>"
+      echo "Example: forge import ~/storage/downloads/MyOldApp"
+      exit 1
+    fi
+    
+    local proj_name=$(basename "$src_path")
+    local target="$HOME/$proj_name"
+    
+    if [ -d "$target" ]; then
+      echo "✗ Project '$proj_name' pehle se Termux ke home me hai!"
+      exit 1
+    fi
+
+    echo "📥 Importing project from $src_path to ~/$proj_name..."
+    cp -r "$src_path" "$target"
+    echo "sdk.dir=$ANDROID_HOME" > "$target/local.properties"
+    rm -rf "$target/app/build" "$target/build" "$target/.gradle"
+
+    if [ ! -f "$target/gradlew" ] && [ -f "$HOME/.forge/wrapper/gradlew" ]; then
+      cp -r "$HOME/.forge/wrapper/gradlew" "$HOME/.forge/wrapper/gradle" "$target/"
+      chmod +x "$target/gradlew"
+    fi
+
+    echo "✅ Import successful! Ab chalao: cd ~/$proj_name"
+    ;;
+
+  package)
+    local proj_dir="${2:-$HOME/hello-forge}"
+    local new_pkg="${3:-}"
+    
+    if [ ! -d "$proj_dir" ]; then
+      echo "✗ Project folder nahi mila: $proj_dir"; exit 1
+    fi
+
+    cd "$proj_dir"
+    local gradle_file="app/build.gradle"
+    
+    if [ ! -f "$gradle_file" ]; then
+      echo "✗ app/build.gradle nahi mila."; exit 1
+    fi
+
+    local old_pkg=$(grep 'namespace' "$gradle_file" | awk -F"'" '{print $2}' | head -n 1)
+    
+    if [ -z "$new_pkg" ]; then
+      echo "➜ Purana Package: $old_pkg"
+      echo -n "➜ Naya Package Name likho (e.g., com.yogesh.app): "
+      read -r new_pkg
+    fi
+
+    if [[ ! "$new_pkg" =~ ^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$ ]]; then
+      echo "✗ Invalid package name format!"; exit 1
+    fi
+
+    echo "🔄 Changing package: $old_pkg ➜ $new_pkg"
+    sed -i "s/namespace '$old_pkg'/namespace '$new_pkg'/g" "$gradle_file"
+    sed -i "s/applicationId \"$old_pkg\"/applicationId \"$new_pkg\"/g" "$gradle_file"
+    sed -i "s/applicationId '$old_pkg'/applicationId '$new_pkg'/g" "$gradle_file"
+
+    [ -f "app/src/main/AndroidManifest.xml" ] && sed -i "s/$old_pkg/$new_pkg/g" "app/src/main/AndroidManifest.xml"
+    find app/src/main -type f \( -name "*.kt" -o -name "*.java" \) -exec sed -i "s/$old_pkg/$new_pkg/g" {} + 2>/dev/null || true
+    
+    local old_dir=$(echo "$old_pkg" | tr '.' '/')
+    local new_dir=$(echo "$new_pkg" | tr '.' '/')
+    
+    if [ -d "app/src/main/java/$old_dir" ]; then
+      mkdir -p "app/src/main/java/$new_dir"
+      find "app/src/main/java/$old_dir" -type f -exec mv {} "app/src/main/java/$new_dir/" \; 2>/dev/null || true
+      rm -rf "app/src/main/java/$old_dir"
+    fi
+
+    echo "✅ Package name updated to: $new_pkg"
+    ;;
+
   icon)
     local proj_dir="${2:-$HOME/hello-forge}"
     local icon_path="${3:-}"
     if [ -z "$icon_path" ] || [ ! -f "$icon_path" ]; then
       echo "❌ Usage: forge icon <project_folder> <path_to_image>"
-      echo "Example: forge icon ~/my-app ~/storage/downloads/logo.png"
       exit 1
     fi
     echo "🎨 Generating App Icons from $icon_path..."
-    
     local res_dir="$proj_dir/app/src/main/res"
     mkdir -p "$res_dir/mipmap-mdpi" "$res_dir/mipmap-hdpi" "$res_dir/mipmap-xhdpi" "$res_dir/mipmap-xxhdpi" "$res_dir/mipmap-xxxhdpi"
-    
-    # ImageMagick convert command
     convert "$icon_path" -resize 48x48 "$res_dir/mipmap-mdpi/ic_launcher.png" 2>/dev/null || true
     convert "$icon_path" -resize 72x72 "$res_dir/mipmap-hdpi/ic_launcher.png" 2>/dev/null || true
     convert "$icon_path" -resize 96x96 "$res_dir/mipmap-xhdpi/ic_launcher.png" 2>/dev/null || true
     convert "$icon_path" -resize 144x144 "$res_dir/mipmap-xxhdpi/ic_launcher.png" 2>/dev/null || true
     convert "$icon_path" -resize 192x192 "$res_dir/mipmap-xxxhdpi/ic_launcher.png" 2>/dev/null || true
-    
     echo "✅ App icons updated successfully!"
     ;;
 
   export)
     local proj_dir="${2:-$HOME/hello-forge}"
-    local apk="$proj_dir/app/build/outputs/apk/debug/app-debug.apk"
-    local proj_name=$(basename "$proj_dir")
+    local build_type="${3:-all}"
     local dest_dir="$HOME/storage/downloads/ForgeApps"
-
-    if [ ! -f "$apk" ]; then
-      echo "✗ APK nahi mila. Pehle 'forge build $proj_dir' chalao."
-      exit 1
-    fi
+    local proj_name=$(basename "$proj_dir")
+    
     mkdir -p "$dest_dir"
-    cp "$apk" "$dest_dir/${proj_name}.apk"
-    echo "✅ APK copied to: Download/ForgeApps/${proj_name}.apk"
-    termux-open "$dest_dir/${proj_name}.apk"
+    local found=0
+
+    if [[ "$build_type" == "debug" || "$build_type" == "all" ]]; then
+      local apk="$proj_dir/app/build/outputs/apk/debug/app-debug.apk"
+      if [ -f "$apk" ]; then
+        cp "$apk" "$dest_dir/${proj_name}-debug.apk"
+        echo "✅ Debug APK copied: Download/ForgeApps/${proj_name}-debug.apk"
+        found=1
+      fi
+    fi
+
+    if [[ "$build_type" == "release" || "$build_type" == "all" ]]; then
+      local apk_rel="$proj_dir/app/build/outputs/apk/release/app-release.apk"
+      if [ -f "$apk_rel" ]; then
+        cp "$apk_rel" "$dest_dir/${proj_name}-release.apk"
+        echo "✅ Release APK copied: Download/ForgeApps/${proj_name}-release.apk"
+        termux-open "$dest_dir/${proj_name}-release.apk" &
+        found=1
+      fi
+    fi
+
+    if [[ "$build_type" == "aab" || "$build_type" == "all" ]]; then
+      local aab="$proj_dir/app/build/outputs/bundle/release/app-release.aab"
+      if [ -f "$aab" ]; then
+        cp "$aab" "$dest_dir/${proj_name}-release.aab"
+        echo "✅ AAB Bundle copied: Download/ForgeApps/${proj_name}-release.aab"
+        found=1
+      fi
+    fi
+
+    if [ "$found" -eq 0 ]; then
+      echo "✗ Koi file nahi mili. Pehle 'forge build release' ya 'forge bundle' chalao."
+    else
+      echo "🎉 Files saved in Phone Storage: /storage/emulated/0/Download/ForgeApps/"
+    fi
     ;;
 
   repair)
@@ -499,39 +618,63 @@ case "${1:-help}" in
     ;;
 
   build)
-    cd "${2:-$HOME/hello-forge}"
-    shift 2 2>/dev/null || shift
-    if [ -f "./gradlew" ]; then
-      exec ./gradlew assembleDebug --no-daemon "$@"
+    local build_type="debug"
+    local proj_dir=""
+    
+    if [ "${2:-}" == "release" ] || [ "${2:-}" == "debug" ]; then
+      build_type="$2"
+      proj_dir="${3:-$HOME/hello-forge}"
     else
-      exec gradle assembleDebug --no-daemon "$@"
+      proj_dir="${2:-$HOME/hello-forge}"
+    fi
+
+    cd "$proj_dir"
+    echo "🔨 Building $build_type APK for $(basename "$proj_dir")..."
+    
+    if [ -f "./gradlew" ]; then
+      exec ./gradlew "assemble$(echo ${build_type^})" --no-daemon
+    else
+      exec gradle "assemble$(echo ${build_type^})" --no-daemon
+    fi
+    ;;
+
+  bundle)
+    local proj_dir="${2:-$HOME/hello-forge}"
+    cd "$proj_dir"
+    echo "📦 Building Release Bundle (AAB) for $(basename "$proj_dir")..."
+    if [ -f "./gradlew" ]; then
+      exec ./gradlew bundleRelease --no-daemon
+    else
+      exec gradle bundleRelease --no-daemon
     fi
     ;;
 
   sdk) exec sdkmanager --sdk_root="$ANDROID_HOME" "${@:2}" ;;
   ai) exec opencode ;;
   doctor) exec bash "$HOME/.local/share/termux-forge/forge.sh" --doctor ;;
-  version) echo "termux-forge v6.0.0" ;;
+  version) echo "termux-forge v6.2.0" ;;
   
   *) cat <<'EOF'
-╔══════════════════════════════════════════╗
-║  ⚒️  FORGE CLI v6.0                      ║
-╠══════════════════════════════════════════╣
-║  ➜ forge create <name>  New project      ║
-║  ➜ forge icon <proj> <img> Set App Icon  ║
-║  ➜ forge build [dir]    Build APK        ║
-║  ➜ forge export [dir]   Copy to Storage  ║
-║  ➜ forge repair [dir]   Fix build errors ║
-║  ➜ forge ai             OpenCode         ║
-║  ➜ forge doctor         Health check     ║
-║  ➜ forge sdk [args]     sdkmanager       ║
-╚══════════════════════════════════════════╝
+╔════════════════════════════════════════════╗
+║  ⚒️  FORGE CLI v6.2                        ║
+╠════════════════════════════════════════════╣
+║  ➜ forge create <name>    New project      ║
+║  ➜ forge import <path>    Import project   ║
+║  ➜ forge build [release]  Build APK        ║
+║  ➜ forge bundle [dir]     Build AAB        ║
+║  ➜ forge icon <proj> <img>Set App Icon     ║
+║  ➜ forge package <proj>   Set Package Name ║
+║  ➜ forge export [dir] [release] Copy APK   ║
+║  ➜ forge repair [dir]     Fix build errors ║
+║  ➜ forge ai               OpenCode         ║
+║  ➜ forge doctor           Health check     ║
+╚════════════════════════════════════════════╝
 EOF
   ;;
 esac
 CLI
   chmod +x "$forge_bin"
-  ok "✅ forge CLI v6.0 installed"
+  ok "✅ forge CLI v6.2 installed"
 }
 
 doctor() {
@@ -552,6 +695,7 @@ doctor() {
   check "✓ Android SDK"           '[[ -d "$ANDROID_SDK" ]]'
   check "✓ platforms/android-35"  '[[ -d "$ANDROID_SDK/platforms/android-35" ]]'
   check "✓ build-tools/35.0.0"    '[[ -d "$ANDROID_SDK/build-tools/35.0.0" ]]'
+  check "✓ Keystore"              '[[ -f "$HOME/.forge/release.keystore" ]]'
 
   local apk_file
   apk_file="$(find "$HOME/hello-forge" -name "*.apk" -type f 2>/dev/null | head -n 1)"
@@ -593,11 +737,11 @@ main() {
 
   cat <<EOF
 ${CY}➜ Try these commands:${R}
-  ${G}▸${R} forge create my-app    ${Y}Create Project${R}
-  ${G}▸${R} forge build            ${Y}Build APK${R}
-  ${G}▸${R} forge icon ~/my-app ~/logo.png  ${Y}Set App Icon${R}
-  ${G}▸${R} forge export ~/my-app  ${Y}Copy to Storage${R}
-  ${G}▸${R} forge repair ~/my-app  ${Y}Fix build errors${R}
+  ${G}▸${R} forge import ~/storage/downloads/MyApp ${Y}Import Old Project${R}
+  ${G}▸${R} forge create my-app    ${Y}Create New Project${R}
+  ${G}▸${R} forge build release    ${Y}Build Release APK${R}
+  ${G}▸${R} forge bundle ~/my-app  ${Y}Build Play Store AAB${R}
+  ${G}▸${R} forge export ~/my-app release ${Y}Save Release APK${R}
 
 ${MG}👤 github.com/inyogeshwar${R}
 EOF
