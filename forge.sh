@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  ⚒️  TERMUX-FORGE — Ultimate Setup v6.4 (Fast & Light)    ║
+# ║  ⚒️  TERMUX-FORGE — Ultimate Setup & CLI v6.5.0          ║
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 
-readonly FORGE_VERSION="6.4.0"
+readonly FORGE_VERSION="6.5.0"
 readonly GRADLE_VER="8.9"
 readonly AGP_VER="8.7.3"
 readonly KOTLIN_VER="2.0.21"
@@ -35,12 +35,10 @@ die()  { printf '%s✗%s %s\n' "$RE" "$R" "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 banner() {
-clear
-cat <<EOF
+  clear
+  cat <<EOF
 ${CY}┌────────────────────────────────────┐${R}
-${CY}│${R}  ${MG}${B}⚒️  T E R M U X - F O R G E${R}       ${CY}│${R}
-${CY}├────────────────────────────────────┤${R}
-${CY}│${R}  ${G}🎯 v${FORGE_VERSION}${R}  ${CY}│${R}  ${Y}🤖 OpenCode${R}  ${CY}│${R}  ${BL}⚙️ SDK${R} ${CY}│${R}
+${CY}│${R}  ${MG}${B}⚒️  T E R M U X - F O R G E${R}${CY}│${R}${CY}├────────────────────────────────────┤${R}${CY}│${R}${G}🎯 v${FORGE_VERSION}${R}  ${CY}│${R}  ${Y}🤖 OpenCode${R}  ${CY}│${R}  ${BL}⚙️ SDK${R} ${CY}│${R}
 ${CY}│${R}  ${BL}👤 github.com/inyogeshwar${R}          ${CY}│${R}
 ${CY}└────────────────────────────────────┘${R}
 EOF
@@ -73,18 +71,17 @@ pkg_install() {
   local missing=()
   local p
   for p in "${pkgs[@]}"; do
-    dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p")
+    dpkg -s "$p" >/dev/null 2>&1 \vert{}\vert{} missing+=("$p")
   done
   [[ ${#missing[@]} -eq 0 ]] && return 0
-  
+
   log "📦 Installing: ${missing[*]}"
   mkdir -p "$FORGE_DIR"
   local log_file="$FORGE_DIR/pkg_install.log"
   local attempt
 
   for attempt in {1..3}; do
-    # Added --no-install-recommends for faster/leaner install
-    if pkg install -y --no-install-recommends "${missing[@]}" 2>&1 | tee "$log_file"; then
+    if pkg install -y --no-install-recommends "${missing[@]}" 2>&1 \vert{} tee "$log_file"; then
       ok "✓ Packages installed."
       return 0
     fi
@@ -98,6 +95,7 @@ pkg_install() {
   tail -n 15 "$log_file" >&2
   die "Check internet or run 'termux-change-repo'."
 }
+
 has_storage() { [[ -d "$HOME/storage" ]]; }
 
 step_speedtest() {
@@ -147,8 +145,6 @@ step_update() {
 step_packages() {
   clear
   log "▰▰▰▱▱▱▱▱  [3/9] 📦 Base packages (Optimized)..."
-  
-  # Removed: ruby, figlet, imagemagick (lazy load)
   pkg_install \
     git curl wget unzip zsh toilet \
     nodejs openjdk-17 gradle python \
@@ -156,7 +152,6 @@ step_packages() {
 
   pkg update -y >/dev/null 2>&1 || true
   pkg_install glibc-runner
-
   ok "✅ Packages ready"
   sleep 1
 }
@@ -177,7 +172,6 @@ step_shell() {
   [[ -d "$zc/plugins/zsh-autosuggestions" ]] \
     || git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions.git "$zc/plugins/zsh-autosuggestions" >/dev/null 2>&1 || true
 
-  # Remove old Termux welcome & bashrc stuff
   echo "" > "$PREFIX/etc/motd"
   if [ -f "$HOME/.bashrc" ]; then
     grep -vE "PS1=|Welcome to Termux|termux-welcome" "$HOME/.bashrc" > "$HOME/.bashrc.tmp" || true
@@ -187,7 +181,7 @@ step_shell() {
   if ! grep -q 'FORGE_ZSHRC' "$HOME/.zshrc" 2>/dev/null; then
     cat >> "$HOME/.zshrc" <<'ZSHRC'
 
-# ── FORGE_ZSHRC — managed block ───────────────────────────
+# ── FORGE_ZSHRC ──────────────────────────────────────────
 typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"
@@ -202,18 +196,17 @@ export JAVA_HOME="${PREFIX}/lib/jvm/java-17-openjdk"
 export PATH="$PATH:$HOME/.opencode/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/35.0.0"
 
 _forge_banner() {
-  local name w out l p max=0
+  local name w out l max=0
   name=$(cat ~/.forge/.name 2>/dev/null || echo Forge)
   w=${COLUMNS:-49}
-  # Removed lolcat, using toilet directly (Faster)
   out=$(toilet -w 1000 -f smblock -F border "$name" 2>/dev/null)
   while IFS= read -r l; do (( ${#l} > max )) && max=${#l}; done <<< "$out"
   (( max > w )) && out=$(toilet -w "$w" -f smblock "$name" 2>/dev/null)
   echo
-  # Print with Cyan color
   echo -e "\e[36m$out\e[0m"
 }
 [[ -o interactive ]] && _forge_banner
+# ── END FORGE_ZSHRC ──────────────────────────────────────
 ZSHRC
   fi
 
@@ -232,10 +225,10 @@ step_opencode() {
   local OC_DIR="$HOME/.opencode/bin"
   local OC_VER
   OC_VER=$(npm view opencode-linux-arm64 version 2>/dev/null) || OC_VER="1.19.5"
-  
+
   mkdir -p "$OC_DIR"
   rm -rf "$TMPDIR/oc" && mkdir -p "$TMPDIR/oc" && cd "$TMPDIR/oc"
-  
+
   if npm pack --silent "opencode-linux-arm64@$OC_VER" >/dev/null 2>&1; then
     tar xzf "opencode-linux-arm64-$OC_VER.tgz"
     mv -f package/bin/opencode "$OC_DIR/opencode-linux"
@@ -286,7 +279,6 @@ step_android_sdk() {
   for t in aapt aapt2 aidl zipalign apksigner; do
     if [ -e "$BT/$t" ] && command -v "$t" >/dev/null; then
       local cmd_path=$(command -v "$t")
-      # FIX: Check if it's already the same file before linking to prevent error
       if [ "$cmd_path" != "$BT/$t" ]; then
         ln -sf "$cmd_path" "$BT/$t" 2>/dev/null || true
       fi
@@ -425,203 +417,29 @@ EOF
 step_finalize() {
   clear
   log "▰▰▰▰▰▰▰▰  [8/9] 🏁 Finalizing CLI..."
-  mkdir -p "$FORGE_DIR"
+  mkdir -p "$FORGE_DIR" "$HOME/.local/share/termux-forge"
 
-  local forge_bin="${PREFIX}/bin/forge"
-  cat > "$forge_bin" <<'CLI'
-#!/usr/bin/env bash
-set -Eeuo pipefail
+  # Copy self to local share if running via curl/git
+  local self_path
+  self_path="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+  if [[ -f "$self_path" && "$self_path" != "$PREFIX/share/termux-forge/forge.sh" ]]; then
+    cp -f "$self_path" "$HOME/.local/share/termux-forge/forge.sh"
+    chmod 755 "$HOME/.local/share/termux-forge/forge.sh"
+  fi
 
-export ANDROID_HOME="$HOME/android-sdk"
-export JAVA_HOME="${PREFIX:-/data/data/com.termux/files/usr}/lib/jvm/java-17-openjdk"
-
-case "${1:-help}" in
-  create)
-    local proj_name="${2:-myapp}"
-    local target="$HOME/$proj_name"
-    if [ -d "$target" ]; then echo "✗ Folder '$proj_name' pehle se hai!"; exit 1; fi
-    echo "🏗️  Creating new project: $proj_name"
-    cp -r "$HOME/hello-forge" "$target"
-    rm -rf "$target/app/build" "$target/build" "$target/.gradle"
-    echo -n "➜ App ka Display Name (e.g. My Notes): "
-    read -r custom_name
-    custom_name="${custom_name:-$proj_name}"
-    echo -n "➜ Package Name (e.g. com.yogesh.notes): "
-    read -r custom_pkg
-    custom_pkg="${custom_pkg:-com.forge.$(echo "$proj_name" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')}"
-    local safe_dir=$(echo "$custom_pkg" | tr '.' '/')
-    sed -i "s/com\.forge\.hello/$custom_pkg/g" "$target/app/build.gradle"
-    sed -i "s/com\.forge\.hello/$custom_pkg/g" "$target/app/src/main/AndroidManifest.xml"
-    sed -i "s/android:label=\"Hello Forge\"/android:label=\"$custom_name\"/g" "$target/app/src/main/AndroidManifest.xml"
-    sed -i "s/package com\.forge\.hello/package $custom_pkg/g" "$target/app/src/main/java/com/forge/hello/MainActivity.kt"
-    mkdir -p "$target/app/src/main/java/$safe_dir"
-    mv "$target/app/src/main/java/com/forge/hello/MainActivity.kt" "$target/app/src/main/java/$safe_dir/MainActivity.kt"
-    rm -rf "$target/app/src/main/java/com/forge/hello"
-    echo "✅ Project created successfully!"
-    echo "➜ App Name: $custom_name"
-    echo "➜ Package: $custom_pkg"
-    echo "➜ Ab chalao: cd ~/$proj_name && opencode"
-    ;;
-
-  import)
-    local src_path="${2:-}"
-    if [ -z "$src_path" ] || [ ! -d "$src_path" ]; then
-      echo "❌ Usage: forge import <path_to_project_in_storage>"
-      exit 1
-    fi
-    local proj_name=$(basename "$src_path")
-    local target="$HOME/$proj_name"
-    if [ -d "$target" ]; then echo "✗ Project '$proj_name' pehle se Termux ke home me hai!"; exit 1; fi
-    echo "📥 Importing project from $src_path to ~/$proj_name..."
-    cp -r "$src_path" "$target"
-    echo "sdk.dir=$ANDROID_HOME" > "$target/local.properties"
-    rm -rf "$target/app/build" "$target/build" "$target/.gradle"
-    if [ ! -f "$target/gradlew" ] && [ -f "$HOME/.forge/wrapper/gradlew" ]; then
-      cp -r "$HOME/.forge/wrapper/gradlew" "$HOME/.forge/wrapper/gradle" "$target/"
-      chmod +x "$target/gradlew"
-    fi
-    echo "✅ Import successful! Ab chalao: cd ~/$proj_name"
-    ;;
-
-  package)
-    local proj_dir="${2:-$HOME/hello-forge}"
-    local new_pkg="${3:-}"
-    if [ ! -d "$proj_dir" ]; then echo "✗ Project folder nahi mila: $proj_dir"; exit 1; fi
-    cd "$proj_dir"
-    local gradle_file="app/build.gradle"
-    if [ ! -f "$gradle_file" ]; then echo "✗ app/build.gradle nahi mila."; exit 1; fi
-    local old_pkg=$(grep 'namespace' "$gradle_file" | awk -F"'" '{print $2}' | head -n 1)
-    if [ -z "$new_pkg" ]; then
-      echo "➜ Purana Package: $old_pkg"
-      echo -n "➜ Naya Package Name likho: "
-      read -r new_pkg
-    fi
-    if [[ ! "$new_pkg" =~ ^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$ ]]; then
-      echo "✗ Invalid package name format!"; exit 1
-    fi
-    echo "🔄 Changing package: $old_pkg ➜ $new_pkg"
-    sed -i "s/namespace '$old_pkg'/namespace '$new_pkg'/g" "$gradle_file"
-    sed -i "s/applicationId \"$old_pkg\"/applicationId \"$new_pkg\"/g" "$gradle_file"
-    sed -i "s/applicationId '$old_pkg'/applicationId '$new_pkg'/g" "$gradle_file"
-    [ -f "app/src/main/AndroidManifest.xml" ] && sed -i "s/$old_pkg/$new_pkg/g" "app/src/main/AndroidManifest.xml"
-    find app/src/main -type f \( -name "*.kt" -o -name "*.java" \) -exec sed -i "s/$old_pkg/$new_pkg/g" {} + 2>/dev/null || true
-    local old_dir=$(echo "$old_pkg" | tr '.' '/')
-    local new_dir=$(echo "$new_pkg" | tr '.' '/')
-    if [ -d "app/src/main/java/$old_dir" ]; then
-      mkdir -p "app/src/main/java/$new_dir"
-      find "app/src/main/java/$old_dir" -type f -exec mv {} "app/src/main/java/$new_dir/" \; 2>/dev/null || true
-      rm -rf "app/src/main/java/$old_dir"
-    fi
-    echo "✅ Package name updated to: $new_pkg"
-    ;;
-
-  icon)
-    local proj_dir="${2:-$HOME/hello-forge}"
-    local icon_path="${3:-}"
-    if [ -z "$icon_path" ] || [ ! -f "$icon_path" ]; then
-      echo "❌ Usage: forge icon <project_folder> <path_to_image>"; exit 1
-    fi
-    # ✅ Lazy Install ImageMagick only when icon is needed
-    if ! command -v convert >/dev/null 2>&1; then
-      echo "📦 Installing ImageMagick (needed for icons)..."
-      pkg install -y --no-install-recommends imagemagick >/dev/null 2>&1 || true
-    fi
-    echo "🎨 Generating App Icons from $icon_path..."
-    local res_dir="$proj_dir/app/src/main/res"
-    mkdir -p "$res_dir/mipmap-mdpi" "$res_dir/mipmap-hdpi" "$res_dir/mipmap-xhdpi" "$res_dir/mipmap-xxhdpi" "$res_dir/mipmap-xxxhdpi"
-    convert "$icon_path" -resize 48x48 "$res_dir/mipmap-mdpi/ic_launcher.png" 2>/dev/null || true
-    convert "$icon_path" -resize 72x72 "$res_dir/mipmap-hdpi/ic_launcher.png" 2>/dev/null || true
-    convert "$icon_path" -resize 96x96 "$res_dir/mipmap-xhdpi/ic_launcher.png" 2>/dev/null || true
-    convert "$icon_path" -resize 144x144 "$res_dir/mipmap-xxhdpi/ic_launcher.png" 2>/dev/null || true
-    convert "$icon_path" -resize 192x192 "$res_dir/mipmap-xxxhdpi/ic_launcher.png" 2>/dev/null || true
-    echo "✅ App icons updated successfully!"
-    ;;
-
-  export)
-    local proj_dir="${2:-$HOME/hello-forge}"
-    local build_type="${3:-all}"
-    local dest_dir="$HOME/storage/downloads/ForgeApps"
-    local proj_name=$(basename "$proj_dir")
-    mkdir -p "$dest_dir"
-    local found=0
-    if [[ "$build_type" == "debug" || "$build_type" == "all" ]]; then
-      local apk="$proj_dir/app/build/outputs/apk/debug/app-debug.apk"
-      if [ -f "$apk" ]; then cp "$apk" "$dest_dir/${proj_name}-debug.apk"; echo "✅ Debug APK copied."; found=1; fi
-    fi
-    if [[ "$build_type" == "release" || "$build_type" == "all" ]]; then
-      local apk_rel="$proj_dir/app/build/outputs/apk/release/app-release.apk"
-      if [ -f "$apk_rel" ]; then cp "$apk_rel" "$dest_dir/${proj_name}-release.apk"; echo "✅ Release APK copied."; termux-open "$dest_dir/${proj_name}-release.apk" & found=1; fi
-    fi
-    if [[ "$build_type" == "aab" || "$build_type" == "all" ]]; then
-      local aab="$proj_dir/app/build/outputs/bundle/release/app-release.aab"
-      if [ -f "$aab" ]; then cp "$aab" "$dest_dir/${proj_name}-release.aab"; echo "✅ AAB Bundle copied."; found=1; fi
-    fi
-    if [ "$found" -eq 0 ]; then echo "✗ Koi file nahi mili."; else echo "🎉 Files saved in: Download/ForgeApps/"; fi
-    ;;
-
-  repair)
-    local proj_dir="${2:-$HOME/hello-forge}"
-    echo "🔧 Repairing project: $proj_dir"
-    echo "sdk.dir=$ANDROID_HOME" > "$proj_dir/local.properties"
-    if [ -f "$HOME/.forge/wrapper/gradlew" ]; then
-      cp -r "$HOME/.forge/wrapper/gradlew" "$HOME/.forge/wrapper/gradle" "$proj_dir/"
-      chmod +x "$proj_dir/gradlew"
-    fi
-    echo "✅ Project repaired!"
-    ;;
-
-  build)
-    local build_type="debug"
-    local proj_dir=""
-    if [ "${2:-}" == "release" ] || [ "${2:-}" == "debug" ]; then
-      build_type="$2"; proj_dir="${3:-$HOME/hello-forge}"
-    else
-      proj_dir="${2:-$HOME/hello-forge}"
-    fi
-    cd "$proj_dir"
-    echo "🔨 Building $build_type APK for $(basename "$proj_dir")..."
-    if [ -f "./gradlew" ]; then exec ./gradlew "assemble$(echo ${build_type^})" --no-daemon
-    else exec gradle "assemble$(echo ${build_type^})" --no-daemon; fi
-    ;;
-
-  bundle)
-    local proj_dir="${2:-$HOME/hello-forge}"
-    cd "$proj_dir"
-    echo "📦 Building Release Bundle (AAB) for $(basename "$proj_dir")..."
-    if [ -f "./gradlew" ]; then exec ./gradlew bundleRelease --no-daemon
-    else exec gradle bundleRelease --no-daemon; fi
-    ;;
-
-  sdk) exec sdkmanager --sdk_root="$ANDROID_HOME" "${@:2}" ;;
-  ai) exec opencode ;;
-  doctor) exec bash "$HOME/.local/share/termux-forge/forge.sh" --doctor ;;
-  version) echo "termux-forge v6.4.0" ;;
-  
-  *) cat <<'EOF'
-╔════════════════════════════════════════════╗
-║  ⚒️  FORGE CLI v6.4                        ║
-╠════════════════════════════════════════════╣
-║  ➜ forge create <name>    New project      ║
-║  ➜ forge import <path>    Import project   ║
-║  ➜ forge build [release]  Build APK        ║
-║  ➜ forge bundle [dir]     Build AAB        ║
-║  ➜ forge icon <proj> <img>Set App Icon     ║
-║  ➜ forge package <proj>   Set Package Name ║
-║  ➜ forge export [dir]     Copy to Storage  ║
-║  ➜ forge repair [dir]     Fix build errors ║
-║  ➜ forge ai               OpenCode         ║
-║  ➜ forge doctor           Health check     ║
-╚════════════════════════════════════════════╝
-EOF
-  ;;
-esac
+  # Create wrapper only if not already installed via .deb
+  if ! dpkg -s termux-forge >/dev/null 2>&1; then
+    cat > "${PREFIX}/bin/forge" <<'CLI'
+#!/data/data/com.termux/files/usr/bin/bash
+exec bash "$HOME/.local/share/termux-forge/forge.sh" --cli "$@"
 CLI
-  chmod +x "$forge_bin"
-  ok "✅ forge CLI v6.4 installed"
+    chmod +x "${PREFIX}/bin/forge"
+  fi
+  ok "✅ forge CLI v${FORGE_VERSION} installed"
 }
 
 doctor() {
-  log "🩺 Health check..."
+  log "🩺 Health check (v${FORGE_VERSION})..."
   local fails=0
   check() { if eval "$2" >/dev/null 2>&1; then ok "$1"; else warn "$1"; fails=$((fails+1)); fi; }
 
@@ -638,21 +456,208 @@ doctor() {
   check "✓ platforms/android-35"  '[[ -d "$ANDROID_SDK/platforms/android-35" ]]'
   check "✓ build-tools/35.0.0"    '[[ -d "$ANDROID_SDK/build-tools/35.0.0" ]]'
   check "✓ Keystore"              '[[ -f "$HOME/.forge/release.keystore" ]]'
+  check "✓ Base Template"         '[[ -f "$HOME/hello-forge/settings.gradle" ]]'
 
-  local apk_file
-  apk_file="$(find "$HOME/hello-forge" -name "*.apk" -type f 2>/dev/null | head -n 1)"
-  if [[ -n "$apk_file" ]]; then ok "✓ Base Template APK"; else warn "⚠ Base Template APK (nahi mila)"; fails=$((fails+1)); fi
-
-  [[ "$fails" -eq 0 ]] && ok "🎯 Sab theek hai! 🚀" || warn "⚠ $fails check(s) fail"
+  [[ "$fails" -eq 0 ]] && ok "🎯 Sab theek hai! 🚀" || warn "⚠ $fails check(s) fail — 'forge setup' chalayein."
   return "$fails"
 }
 
-main() {
+run_cli() {
+  export ANDROID_HOME="$HOME/android-sdk"
+  export JAVA_HOME="${PREFIX:-/data/data/com.termux/files/usr}/lib/jvm/java-17-openjdk"
+
+  case "${1:-help}" in
+    setup)
+      shift
+      run_full_setup "$@"
+      ;;
+
+    create)
+      local proj_name="${2:-myapp}"
+      local target="$HOME/$proj_name"
+      if [ ! -d "$HOME/hello-forge" ]; then echo "✗ Pehle 'forge setup' chalayein!"; exit 1; fi
+      if [ -d "$target" ]; then echo "✗ Folder '$proj_name' pehle se hai!"; exit 1; fi
+      echo "🏗️  Creating new project: $proj_name"
+      cp -r "$HOME/hello-forge" "$target"
+      rm -rf "$target/app/build" "$target/build" "$target/.gradle"
+      echo -n "➜ App ka Display Name (e.g. My Notes): "
+      read -r custom_name
+      custom_name="${custom_name:-$proj_name}"
+      echo -n "➜ Package Name (e.g. com.yogesh.notes): "
+      read -r custom_pkg
+      custom_pkg="${custom_pkg:-com.forge.$(echo "$proj_name" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')}"
+      local safe_dir=$(echo "$custom_pkg" | tr '.' '/')
+      sed -i "s/com\.forge\.hello/$custom_pkg/g" "$target/app/build.gradle"
+      sed -i "s/com\.forge\.hello/$custom_pkg/g" "$target/app/src/main/AndroidManifest.xml"
+      sed -i "s/android:label=\"Hello Forge\"/android:label=\"$custom_name\"/g" "$target/app/src/main/AndroidManifest.xml"
+      sed -i "s/package com\.forge\.hello/package $custom_pkg/g" "$target/app/src/main/java/com/forge/hello/MainActivity.kt"
+      mkdir -p "$target/app/src/main/java/$safe_dir"
+      mv "$target/app/src/main/java/com/forge/hello/MainActivity.kt" "$target/app/src/main/java/$safe_dir/MainActivity.kt"
+      rm -rf "$target/app/src/main/java/com/forge/hello"
+      echo "✅ Project created successfully!"
+      echo "➜ App Name: $custom_name"
+      echo "➜ Package: $custom_pkg"
+      echo "➜ Ab chalao: cd ~/$proj_name && opencode"
+      ;;
+
+    import)
+      local src_path="${2:-}"
+      if [ -z "$src_path" ] || [ ! -d "$src_path" ]; then
+        echo "❌ Usage: forge import <path_to_project_in_storage>"
+        exit 1
+      fi
+      local proj_name=$(basename "$src_path")
+      local target="$HOME/$proj_name"
+      if [ -d "$target" ]; then echo "✗ Project '$proj_name' pehle se Termux ke home me hai!"; exit 1; fi
+      echo "📥 Importing project from $src_path to ~/$proj_name..."
+      cp -r "$src_path" "$target"
+      echo "sdk.dir=$ANDROID_HOME" > "$target/local.properties"
+      rm -rf "$target/app/build" "$target/build" "$target/.gradle"
+      if [ ! -f "$target/gradlew" ] && [ -f "$HOME/.forge/wrapper/gradlew" ]; then
+        cp -r "$HOME/.forge/wrapper/gradlew" "$HOME/.forge/wrapper/gradle" "$target/"
+        chmod +x "$target/gradlew"
+      fi
+      echo "✅ Import successful! Ab chalao: cd ~/$proj_name"
+      ;;
+
+    package)
+      local proj_dir="${2:-$HOME/hello-forge}"
+      local new_pkg="${3:-}"
+      if [ ! -d "$proj_dir" ]; then echo "✗ Project folder nahi mila: $proj_dir"; exit 1; fi
+      cd "$proj_dir"
+      local gradle_file="app/build.gradle"
+      if [ ! -f "$gradle_file" ]; then echo "✗ app/build.gradle nahi mila."; exit 1; fi
+      local old_pkg=$(grep 'namespace' "$gradle_file" | awk -F"'" '{print $2}' | head -n 1)
+      if [ -z "$new_pkg" ]; then
+        echo "➜ Purana Package: $old_pkg"
+        echo -n "➜ Naya Package Name likho: "
+        read -r new_pkg
+      fi
+      if [[ ! "$new_pkg" =~ ^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$ ]]; then
+        echo "✗ Invalid package name format!"; exit 1
+      fi
+      echo "🔄 Changing package: $old_pkg ➜ $new_pkg"
+      sed -i "s/namespace '$old_pkg'/namespace '$new_pkg'/g" "$gradle_file"
+      sed -i "s/applicationId \"$old_pkg\"/applicationId \"$new_pkg\"/g" "$gradle_file"
+      sed -i "s/applicationId '$old_pkg'/applicationId '$new_pkg'/g" "$gradle_file"
+      [ -f "app/src/main/AndroidManifest.xml" ] && sed -i "s/$old_pkg/$new_pkg/g" "app/src/main/AndroidManifest.xml"
+      find app/src/main -type f \( -name "*.kt" -o -name "*.java" \) -exec sed -i "s/$old_pkg/$new_pkg/g" {} + 2>/dev/null || true
+      local old_dir=$(echo "$old_pkg" | tr '.' '/')
+      local new_dir=$(echo "$new_pkg" | tr '.' '/')
+      if [ -d "app/src/main/java/$old_dir" ]; then
+        mkdir -p "app/src/main/java/$new_dir"
+        find "app/src/main/java/$old_dir" -type f -exec mv {} "app/src/main/java/$new_dir/" \; 2>/dev/null || true
+        rm -rf "app/src/main/java/$old_dir"
+      fi
+      echo "✅ Package name updated to: $new_pkg"
+      ;;
+
+    icon)
+      local proj_dir="${2:-$HOME/hello-forge}"
+      local icon_path="${3:-}"
+      if [ -z "$icon_path" ] || [ ! -f "$icon_path" ]; then
+        echo "❌ Usage: forge icon <project_folder> <path_to_image>"; exit 1
+      fi
+      if ! command -v convert >/dev/null 2>&1; then
+        echo "📦 Installing ImageMagick (needed for icons)..."
+        pkg install -y --no-install-recommends imagemagick >/dev/null 2>&1 || true
+      fi
+      echo "🎨 Generating App Icons from $icon_path..."
+      local res_dir="$proj_dir/app/src/main/res"
+      mkdir -p "$res_dir/mipmap-mdpi" "$res_dir/mipmap-hdpi" "$res_dir/mipmap-xhdpi" "$res_dir/mipmap-xxhdpi" "$res_dir/mipmap-xxxhdpi"
+      convert "$icon_path" -resize 48x48 "$res_dir/mipmap-mdpi/ic_launcher.png" 2>/dev/null || true
+      convert "$icon_path" -resize 72x72 "$res_dir/mipmap-hdpi/ic_launcher.png" 2>/dev/null || true
+      convert "$icon_path" -resize 96x96 "$res_dir/mipmap-xhdpi/ic_launcher.png" 2>/dev/null || true
+      convert "$icon_path" -resize 144x144 "$res_dir/mipmap-xxhdpi/ic_launcher.png" 2>/dev/null || true
+      convert "$icon_path" -resize 192x192 "$res_dir/mipmap-xxxhdpi/ic_launcher.png" 2>/dev/null || true
+      echo "✅ App icons updated successfully!"
+      ;;
+
+    export)
+      local proj_dir="${2:-$HOME/hello-forge}"
+      local build_type="${3:-all}"
+      local dest_dir="$HOME/storage/downloads/ForgeApps"
+      local proj_name=$(basename "$proj_dir")
+      mkdir -p "$dest_dir"
+      local found=0
+      if [[ "$build_type" == "debug" || "$build_type" == "all" ]]; then
+        local apk="$proj_dir/app/build/outputs/apk/debug/app-debug.apk"
+        if [ -f "$apk" ]; then cp "$apk" "$dest_dir/${proj_name}-debug.apk"; echo "✅ Debug APK copied."; found=1; fi
+      fi
+      if [[ "$build_type" == "release" || "$build_type" == "all" ]]; then
+        local apk_rel="$proj_dir/app/build/outputs/apk/release/app-release.apk"
+        if [ -f "$apk_rel" ]; then cp "$apk_rel" "$dest_dir/${proj_name}-release.apk"; echo "✅ Release APK copied."; termux-open "$dest_dir/${proj_name}-release.apk" & found=1; fi
+      fi
+      if [[ "$build_type" == "aab" || "$build_type" == "all" ]]; then
+        local aab="$proj_dir/app/build/outputs/bundle/release/app-release.aab"
+        if [ -f "$aab" ]; then cp "$aab" "$dest_dir/${proj_name}-release.aab"; echo "✅ AAB Bundle copied."; found=1; fi
+      fi
+      if [ "$found" -eq 0 ]; then echo "✗ Koi file nahi mili."; else echo "🎉 Files saved in: Download/ForgeApps/"; fi
+      ;;
+
+    repair)
+      local proj_dir="${2:-$HOME/hello-forge}"
+      echo "🔧 Repairing project: $proj_dir"
+      echo "sdk.dir=$ANDROID_HOME" > "$proj_dir/local.properties"
+      if [ -f "$HOME/.forge/wrapper/gradlew" ]; then
+        cp -r "$HOME/.forge/wrapper/gradlew" "$HOME/.forge/wrapper/gradle" "$proj_dir/"
+        chmod +x "$proj_dir/gradlew"
+      fi
+      echo "✅ Project repaired!"
+      ;;
+
+    build)
+      local build_type="debug"
+      local proj_dir=""
+      if [ "${2:-}" == "release" ] || [ "${2:-}" == "debug" ]; then
+        build_type="$2"; proj_dir="${3:-$HOME/hello-forge}"
+      else
+        proj_dir="${2:-$HOME/hello-forge}"
+      fi
+      cd "$proj_dir"
+      echo "🔨 Building $build_type APK for $(basename "$proj_dir")..."
+      if [ -f "./gradlew" ]; then exec ./gradlew "assemble$(echo ${build_type^})" --no-daemon
+      else exec gradle "assemble$(echo ${build_type^})" --no-daemon; fi
+      ;;
+
+    bundle)
+      local proj_dir="${2:-$HOME/hello-forge}"
+      cd "$proj_dir"
+      echo "📦 Building Release Bundle (AAB) for $(basename "$proj_dir")..."
+      if [ -f "./gradlew" ]; then exec ./gradlew bundleRelease --no-daemon
+      else exec gradle bundleRelease --no-daemon; fi
+      ;;
+
+    sdk) exec sdkmanager --sdk_root="$ANDROID_HOME" "${@:2}" ;;
+    ai) exec opencode ;;
+    doctor) doctor ;;
+    version|-v|--version) echo "termux-forge v${FORGE_VERSION}" ;;
+
+    *) cat <<EOF
+╔════════════════════════════════════════════╗
+║  ⚒️  FORGE CLI v${FORGE_VERSION}                      ║
+╠════════════════════════════════════════════╣
+║  ➜ forge setup            Run full setup   ║
+║  ➜ forge create <name>    New project      ║
+║  ➜ forge import <path>    Import project   ║
+║  ➜ forge build [release]  Build APK        ║
+║  ➜ forge bundle [dir]     Build AAB        ║
+║  ➜ forge icon <proj> <img>Set App Icon     ║
+║  ➜ forge package <proj>   Set Package Name ║
+║  ➜ forge export [dir]     Copy to Storage  ║
+║  ➜ forge repair [dir]     Fix build errors ║
+║  ➜ forge ai               OpenCode         ║
+║  ➜ forge doctor           Health check     ║
+╚════════════════════════════════════════════╝
+EOF
+    ;;
+  esac
+}
+
+run_full_setup() {
   mkdir -p "$FORGE_DIR"
   export TMPDIR="${TMPDIR:-${PREFIX}/tmp}"
   mkdir -p "$TMPDIR"
-
-  if [[ "${1:-}" == "--doctor" ]]; then doctor; return; fi
 
   banner
   ask_name
@@ -675,7 +680,7 @@ main() {
   cat <<EOF
 ${CY}➜ Termux ko ek baar restart karo (Zsh load karne ke liye):${R}
   ${G}▸${R} exit
-  
+
   Ya phir ${Y}exec zsh${R} chalao.
 
 ${CY}➜ Try these commands:${R}
@@ -685,6 +690,17 @@ ${CY}➜ Try these commands:${R}
 
 ${MG}👤 github.com/inyogeshwar${R}
 EOF
+}
+
+main() {
+  if [[ "${1:-}" == "--cli" ]]; then
+    shift
+    run_cli "$@"
+  elif [[ "${1:-}" == "--doctor" ]]; then
+    doctor
+  else
+    run_full_setup "$@"
+  fi
 }
 
 main "$@"

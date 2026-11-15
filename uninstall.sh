@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  🗑️  TERMUX-FORGE — Complete Uninstaller v6.2            ║
+# ║  🗑️  TERMUX-FORGE — Complete Uninstaller v6.5.0          ║
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 
@@ -23,15 +23,17 @@ rm -rf "$HOME/.forge"
 rm -rf "$HOME/hello-forge"
 rm -f "$HOME/git_install.log"
 
-log "2. Binaries remove ho rahi hain..."
-rm -f "$PREFIX/bin/forge"
-rm -f "$PREFIX/bin/opencode"
+log "2. Binaries / Package remove kiye ja rahe hain..."
+if dpkg -s termux-forge >/dev/null 2>&1; then
+  pkg uninstall -y termux-forge || dpkg -r termux-forge || true
+else
+  rm -f "${PREFIX:-/data/data/com.termux/files/usr}/bin/forge"
+fi
+rm -f "${PREFIX:-/data/data/com.termux/files/usr}/bin/opencode"
 
 log "3. .zshrc ko clean kiya ja raha hai..."
 if [ -f "$HOME/.zshrc" ]; then
-  sed -i '/# ── FORGE_ZSHRC ──/,/# ── END FORGE_ZSHRC ──/d' "$HOME/.zshrc" 2>/dev/null || true
-  sed -i '/export ANDROID_HOME/d' "$HOME/.zshrc" 2>/dev/null || true
-  sed -i '/export ANDROID_SDK_ROOT/d' "$HOME/.zshrc" 2>/dev/null || true
+  sed -i '/# ── FORGE_ZSHRC/,/# ── END FORGE_ZSHRC/d' "$HOME/.zshrc" 2>/dev/null || true
 fi
 
 log "4. Gradle aur Android SDK remove kiya ja raha hai..."

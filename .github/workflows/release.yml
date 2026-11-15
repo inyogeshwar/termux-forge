@@ -1,0 +1,75 @@
+name: Build and Release Termux Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Fix Line Endings (CRLF -> LF)
+        run: |
+          find . -type f -name "*.sh" -exec sed -i 's/\r$//' {} +
+
+      - name: Build Termux .deb Package
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          [[ "$VERSION" == "$GITHUB_REF" ]] && VERSION="6.5.0"
+
+          PKG_DIR="termux-forge_${VERSION}_all"
+          BIN_DIR="$PKG_DIR/data/data/com.termux/files/usr/bin"
+          SHARE_DIR="$PKG_DIR/data/data/com.termux/files/usr/share/termux-forge"
+
+          mkdir -p "$PKG_DIR/DEBIAN" "$BIN_DIR" "$SHARE_DIR"
+
+          cp forge.sh "$SHARE_DIR/forge.sh"
+          cp uninstall.sh "$SHARE_DIR/uninstall.sh"
+          chmod 755 "$SHARE_DIR/forge.sh" "$SHARE_DIR/uninstall.sh"
+
+          # Main 'forge' command wrapper
+          cat <<'EOF' > "$BIN_DIR/forge"
+          #!/data/data/com.termux/files/usr/bin/bash
+          exec bash "${PREFIX:-/data/data/com.termux/files/usr}/share/termux-forge/forge.sh" --cli "$@"
+          EOF
+          chmod 755 "$BIN_DIR/forge"
+
+          # DEBIAN/control
+          cat <<EOF > "$PKG_DIR/DEBIAN/control"
+          Package: termux-forge
+          Version: $VERSION
+          Architecture: all
+          Maintainer: Yogeshwar Kumar <inyogeshwar@users.noreply.github.com>
+          Depends: bash, git, curl, unzip, zsh, toilet
+          Homepage: https://github.com/inyogeshwar/termux-forge
+          Description: AI-powered Android APK/AAB builder & OpenCode environment for Termux.
+          EOF
+
+          # Post-install message
+          cat <<'EOF' > "$PKG_DIR/DEBIAN/postinst"
+          #!/data/data/com.termux/files/usr/bin/bash
+          echo ""
+          echo "⚒️  termux-forge v${VERSION} successfully installed!"
+          echo "➜ Run 'forge setup' to install Android SDK, Zsh & OpenCode."
+          echo "➜ Run 'forge help' to see all available commands."
+          echo ""
+          EOF
+          chmod 755 "$PKG_DIR/DEBIAN/postinst"
+
+          dpkg-deb --build "$PKG_DIR"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: termux-forge_*_all.deb
+          generate_release_notes: true
