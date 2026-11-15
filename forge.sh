@@ -6,7 +6,7 @@
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 
-readonly FORGE_VERSION="7.0.0"
+readonly FORGE_VERSION="7.0.1"
 readonly REPO_SLUG="inyogeshwar/termux-forge"
 readonly GRADLE_VER="8.9"
 readonly AGP_VER="8.7.3"
@@ -67,16 +67,34 @@ confirm() {
   [[ "$ans" =~ ^[Yy]$ ]]
 }
 
+# Leave one column free so terminals do not wrap at the right edge.
+ui_width() {
+  local cols="${COLUMNS:-}"
+  if [[ ! "$cols" =~ ^[0-9]+$ ]] || (( cols < 2 )); then
+    cols=$(tput cols 2>/dev/null) || cols=40
+  fi
+  [[ "$cols" =~ ^[0-9]+$ ]] && (( cols > 1 )) || cols=40
+  printf '%s\n' "$((cols - 1))"
+}
+
+ui_text() { printf '%s\n' "$*" | fold -s -w "$(ui_width)"; }
+
+ui_rule() {
+  local width line
+  width=$(ui_width)
+  (( width > 38 )) && width=38
+  printf -v line '%*s' "$width" ''
+  printf '%s%s%s\n' "$CY" "${line// /─}" "$R"
+}
+
 banner() {
   ui_clear
-  cat <<EOF
-${CY}┌────────────────────────────────────┐${R}
-${CY}│${R}  ${MG}${B}⚒️  T E R M U X - F O R G E${R}       ${CY}│${R}
-${CY}├────────────────────────────────────┤${R}
-${CY}│${R}  ${G}🎯 v${FORGE_VERSION}${R}  ${CY}│${R}  ${Y}🤖 OpenCode${R}  ${CY}│${R}  ${BL}⚙️ SDK${R}  ${CY}│${R}
-${CY}│${R}  ${BL}👤 github.com/inyogeshwar${R}          ${CY}│${R}
-${CY}└────────────────────────────────────┘${R}
-EOF
+  ui_rule
+  printf '%s%s' "$MG" "$B"
+  ui_text 'TERMUX FORGE'
+  printf '%s' "$R"
+  ui_text "v${FORGE_VERSION} / Android + AI"
+  ui_rule
 }
 
 # ──────────────────────────── generic helpers ────────────────────────────
@@ -201,10 +219,9 @@ ask_name() {
   elif [[ "$FORGE_YES" == "1" ]]; then
     name="Forge"
   else
-    printf '\n%s┌──────────────────────────────────────────────┐%s\n' "$CY" "$R"
-    printf '%s│%s  🖊️  Apna naam likho (terminal banner ke liye)  %s│%s\n' "$CY" "$R" "$CY" "$R"
-    printf '%s└──────────────────────────────────────────────┘%s\n' "$CY" "$R"
-    printf '➜ Your Name: '
+    printf '\n'
+    ui_text 'Banner aur prompt ka naam:'
+    printf '> '
     read -r name 2>/dev/null </dev/tty || name="Forge"
   fi
   name="${name//[^A-Za-z0-9_-]/}"
@@ -263,13 +280,30 @@ write_zshrc_block() {
   local block
   block=$(cat <<'ZSHRC'
 # ── FORGE_ZSHRC ──────────────────────────────────────────
-typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
+# Native Zsh prompt: fits phone screens without a patched Nerd Font.
 export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="powerlevel10k/powerlevel10k"
+ZSH_THEME=""
+DISABLE_AUTO_TITLE=true
 plugins=(git zsh-autosuggestions)
-source $ZSH/oh-my-zsh.sh
+[[ -f "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
 
-[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
+_forge_prompt() {
+  local last_status=$? name width dir_width color=green
+  (( last_status )) && color=red
+  name=$(cat "$HOME/.forge/.name" 2>/dev/null) || name=Forge
+  name="${name//[^A-Za-z0-9_-]/}"
+  name="${name:-Forge}"
+  width=$(( ${COLUMNS:-40} - 1 ))
+  (( width < 12 )) && width=12
+  name="${name[1,$((width / 3))]}"
+  dir_width=$((width - ${#name} - 3))
+  # Zsh truncates the displayed path as the terminal is resized.
+  PROMPT="%F{cyan}${name}%f %F{blue}%${dir_width}<..<%~%<<%f"$'\n'"%F{${color}}>%f "
+  RPROMPT=''
+}
+autoload -Uz add-zsh-hook
+add-zsh-hook -d precmd _forge_prompt 2>/dev/null
+add-zsh-hook precmd _forge_prompt
 
 export ANDROID_SDK_ROOT="$HOME/android-sdk"
 export ANDROID_HOME="$HOME/android-sdk"
@@ -279,20 +313,27 @@ export PATH="$PATH:$HOME/.opencode/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$A
 # forge <TAB> completion
 _forge() {
   local -a cmds
-  cmds=(setup create import list build bundle install export icon package rename bump keystore clean backup update doctor info ai sdk help version)
+  cmds=(setup create import list build bundle install export icon package rename bump keystore clean repair backup update doctor info ai sdk help version)
   _describe 'forge command' cmds
 }
 (( $+functions[compdef] )) && compdef _forge forge
 
 _forge_banner() {
-  local name w out l max=0
-  name=$(cat ~/.forge/.name 2>/dev/null || echo Forge)
-  w=${COLUMNS:-49}
-  out=$(toilet -w 1000 -f smblock -F border "$name" 2>/dev/null)
-  while IFS= read -r l; do (( ${#l} > max )) && max=${#l}; done <<< "$out"
-  (( max > w )) && out=$(toilet -w "$w" -f smblock "$name" 2>/dev/null)
-  echo
-  echo -e "\e[36m$out\e[0m"
+  local name width line
+  name=$(cat "$HOME/.forge/.name" 2>/dev/null) || name=Forge
+  name="${name//[^A-Za-z0-9_-]/}"
+  name="${name:-Forge}"
+  width=$(( ${COLUMNS:-40} - 1 ))
+  (( width > 36 )) && width=36
+  (( width < 12 )) && width=12
+  printf -v line '%*s' "$width" ''
+  line="${line// /─}"
+  print -P -- "%F{cyan}${line}%f"
+  print -P -- '%B%F{cyan}TERMUX FORGE%f%b'
+  print -r -- "Hi, ${name[1,$((width - 4))]}"
+  print -P -- "%F{cyan}${line}%f"
+  print -r -- 'forge help'
+  print
 }
 [[ -o interactive ]] && _forge_banner
 # ── END FORGE_ZSHRC ──────────────────────────────────────
@@ -307,7 +348,7 @@ ZSHRC
 }
 
 step_shell() {
-  step_header 4 "🐚 Oh My Zsh + Powerlevel10k..."
+  step_header 4 "Mobile Zsh prompt..."
   if [[ "$SKIP_SHELL" == "1" ]]; then warn "Shell setup skipped"; return 0; fi
 
   if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
@@ -317,9 +358,6 @@ step_shell() {
   fi
 
   local zc="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
-  [[ -d "$zc/themes/powerlevel10k" ]] \
-    || git clone --depth 1 https://github.com/romkatv/powerlevel10k.git "$zc/themes/powerlevel10k" >/dev/null 2>&1 \
-    || warn "powerlevel10k clone fail"
   [[ -d "$zc/plugins/zsh-autosuggestions" ]] \
     || git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions.git "$zc/plugins/zsh-autosuggestions" >/dev/null 2>&1 \
     || warn "zsh-autosuggestions clone fail"
@@ -335,7 +373,7 @@ step_shell() {
   if [[ "$(basename "${SHELL:-}")" != "zsh" ]]; then
     chsh -s zsh 2>/dev/null || warn "chsh fail (manually: chsh -s zsh)"
   fi
-  ok "zsh + p10k ready"
+  ok "Mobile Zsh prompt ready"
   pause
 }
 
@@ -803,7 +841,12 @@ cmd_list() {
     is_project "$d" || continue
     found=1
     ver="$(get_version_name "$d")"
-    printf '  %s%-22s%s v%-8s %s\n' "$CY" "$(basename "$d")" "$R" "${ver:--}" "$(get_namespace "$d")"
+    printf '%s' "$CY"
+    ui_text "$(basename "$d")"
+    printf '%s' "$R"
+    ui_text "  Version: ${ver:--}"
+    ui_text "  Package: $(get_namespace "$d")"
+    printf '\n'
   done
   [[ "$found" == 1 ]] || log "Koi project nahi mila. 'forge create my-app' chalao."
   return 0
@@ -1067,40 +1110,72 @@ cmd_ai() {
 }
 
 cmd_help() {
-  cat <<EOF
-${B}⚒️  FORGE CLI v${FORGE_VERSION}${R}   ${CY}forge <command> [options]${R}
+  printf '%s%sFORGE v%s%s\n' "$CY" "$B" "$FORGE_VERSION" "$R"
+  cat <<'EOF' | fold -s -w "$(ui_width)"
+forge <command> [options]
 
-${B}Setup${R}
-  setup [--yes] [--name N]     Full setup (--skip-android --skip-ai --skip-shell --speedtest)
-  doctor                       Health check
-  info                         Versions, paths, free space
-  update                       Latest forge version install karo
+SETUP
+  setup [--yes] [--name N]
+    Environment setup
+    --skip-android / --skip-ai
+    --skip-shell / --speedtest
+  doctor
+    Health check
+  info
+    Versions, paths, free space
+  update
+    Latest Forge install karo
 
-${B}Projects${R}
-  create <name> [opts]         Naya project  (--template kotlin|webview --name "App" --package com.x.y --url https://.. --git)
-  import <path>                Storage se project Termux me lao
-  list                         Saare projects
-  rename [proj] "New Name"     App ka display name badlo
-  package [proj] <com.new.pkg> Package name badlo (folders bhi move hote hain)
-  icon [proj] <image>          Image se app icon banao
-  bump [major|minor|patch]     versionName + versionCode badhao
-  clean [proj]                 Build cache hatao
-  repair [proj]                local.properties + wrapper fix
-  backup [proj]                Project ka tar.gz backup (Download/ForgeBackups)
+PROJECTS
+  create <name> [opts]
+    Naya project
+    --template kotlin|webview
+    --name "App"
+    --package com.x.y
+    --url https://example.com
+    --git
+  import <path>
+    Project Termux home me lao
+  list
+    Saare projects
+  rename [proj] "New Name"
+    App display name badlo
+  package [proj] com.new.pkg
+    Package aur folders badlo
+  icon [proj] <image>
+    App icon banao
+  bump [major|minor|patch] [proj]
+    App version badhao
+  clean [proj]
+    Build cache hatao
+  repair [proj]
+    SDK path aur wrapper fix
+  backup [proj]
+    Download/ForgeBackups me save
 
-${B}Build & Ship${R}
-  build [release] [proj] [-i]  APK banao  (-i = build ke baad install)
-  bundle [proj]                Play Store AAB
-  install [debug|release]      Built APK install karo
-  export [type] [proj]         APK/AAB ko Download/ForgeApps me copy karo
-  keystore [info|backup|new]   Release keystore manage karo
+BUILD & SHIP
+  build [release] [proj] [-i]
+    APK banao; -i se installer
+  bundle [proj]
+    Release AAB banao
+  install [debug|release] [proj]
+    Built APK ka installer kholo
+  export [type] [proj]
+    type: debug|release|aab|all
+    Download/ForgeApps me copy
+  keystore [info|backup|new]
+    Release signing key manage
 
-${B}Tools${R}
-  ai [proj]                    OpenCode AI start karo
-  sdk <args>                   sdkmanager passthrough
-  version                      Version dikhao
+TOOLS
+  ai [proj]
+    OpenCode AI kholo
+  sdk <args>
+    sdkmanager passthrough
+  version
+    Forge version
 
-${Y}Tip:${R} project ke andar ho to proj likhna zaroori nahi — 'forge build' kaafi hai.
+Tip: project folder ke andar
+[proj] dena zaroori nahi.
 EOF
 }
 
@@ -1172,22 +1247,32 @@ run_full_setup() {
   step_finalize
 
   ui_clear
-  printf '\n%s╔══════════════════════════════════════════════════════════╗%s\n' "$G$B" "$R"
-  printf '%s║%s  ✅ SETUP COMPLETE!  ⚒️                                    %s║%s\n' "$G$B" "$R" "$G$B" "$R"
-  printf '%s╚══════════════════════════════════════════════════════════╝%s\n\n' "$G$B" "$R"
-  cat <<EOF
-${CY}➜ Termux ko ek baar restart karo (Zsh load karne ke liye):${R}
-  ${G}▸${R} exit        ya        ${Y}exec zsh${R}
-
-${CY}➜ Ab try karo:${R}
-  ${G}▸${R} forge doctor                      ${Y}Sab check${R}
-  ${G}▸${R} forge create my-app               ${Y}Naya project${R}
-  ${G}▸${R} forge create web --template webview --url https://example.com
-  ${G}▸${R} forge build                       ${Y}Debug APK${R}
-  ${G}▸${R} forge build release && forge export
-
-${MG}👤 github.com/inyogeshwar${R}
-EOF
+  ui_rule
+  printf '%s%s' "$G" "$B"
+  ui_text 'SETUP COMPLETE'
+  printf '%s' "$R"
+  ui_rule
+  ui_text 'Shell reload karo:'
+  ui_text '  exec zsh'
+  printf '\n'
+  ui_text 'Health check:'
+  ui_text '  forge doctor'
+  printf '\n'
+  ui_text 'Naya project:'
+  ui_text '  forge create my-app'
+  ui_text '  cd ~/my-app'
+  printf '\n'
+  ui_text 'AI coding:'
+  ui_text '  forge ai'
+  printf '\n'
+  ui_text 'Debug APK:'
+  ui_text '  forge build'
+  printf '\n'
+  ui_text 'Release aur export:'
+  ui_text '  forge build release'
+  ui_text '  forge export'
+  printf '\n'
+  ui_text 'Saare commands: forge help'
 }
 
 main() {

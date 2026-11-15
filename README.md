@@ -109,6 +109,24 @@ forge doctor
 Environment variable: `FORGE_GRADLE_MEM=3072m` (Gradle ko zyada RAM do).
 </details>
 
+### Mobile terminal layout
+
+Forge ka compact banner aur two-line Zsh prompt phone ke liye hai. Prompt me
+setup wala naam aur short current folder aata hai; command next line par likho.
+Nerd Font ki zaroorat nahi, aur `user@localhost` / right-side clock nahi aata.
+`forge help` aur project list me descriptions alag lines par hain.
+
+Updated source se **sirf shell layout** apply karna ho (SDK setup dobara nahi):
+repo folder me ye chalao:
+
+```bash
+bash -c 'source ./forge.sh; write_zshrc_block'
+exec zsh
+```
+
+Naam `~/.forge/.name` se aata hai (naam na ho to `Forge`). Personal
+`~/.p10k.zsh` file preserve hoti hai; Forge ka prompt ab use load nahi karta.
+
 ---
 
 ## ⚡ Quick Start (2 minute)

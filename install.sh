@@ -12,10 +12,10 @@ BRANCH="${FORGE_BRANCH:-main}"
 DEST="$HOME/.local/share/termux-forge"
 
 if [[ -t 1 ]]; then
-  R=$'\033[0m'; B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'
-  BL=$'\033[34m'; RE=$'\033[31m'; CY=$'\033[36m'; MG=$'\033[35m'
+  R=$'\033[0m'; B=$'\033[1m'; G=$'\033[32m'
+  BL=$'\033[34m'; RE=$'\033[31m'; CY=$'\033[36m'
 else
-  R=''; B=''; G=''; Y=''; BL=''; RE=''; CY=''; MG=''
+  R=''; B=''; G=''; BL=''; RE=''; CY=''
 fi
 
 log() { printf '%s➜%s %s\n' "$BL$B" "$R" "$*"; }
@@ -23,14 +23,8 @@ ok()  { printf '%s✓%s %s\n' "$G" "$R" "$*"; }
 die() { printf '%s✗%s %s\n' "$RE" "$R" "$*" >&2; exit 1; }
 
 if [[ -t 1 ]]; then clear; fi
-cat <<BANNER
-${CY}┌────────────────────────────────────┐${R}
-${CY}│${R}  ${MG}${B}⚒️  TERMUX-FORGE  v7.0.0${R}          ${CY}│${R}
-${CY}├────────────────────────────────────┤${R}
-${CY}│${R}  ${BL}👤 inyogeshwar${R}                     ${CY}│${R}
-${CY}│${R}  ${Y}🚀 Forge anything on Termux${R}        ${CY}│${R}
-${CY}└────────────────────────────────────┘${R}
-BANNER
+printf '%s%sTERMUX FORGE%s\n' "$CY" "$B" "$R"
+printf 'v7.0.1 / Installer\n\n'
 
 [[ -n "${TERMUX_VERSION:-}" || "${PREFIX:-}" == *"com.termux"* ]] \
   || die "Yeh script sirf Termux (Android) ke liye hai."

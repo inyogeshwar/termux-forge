@@ -1,5 +1,12 @@
 # Changelog
 
+## 7.0.1 — Unreleased
+
+- Phone-width setup banners, completion instructions, help and project list.
+- Compact two-line Zsh prompt with saved display name and shortened path.
+- No localhost context, right-side clock or Nerd Font requirement.
+- Manual release workflow uploads a testable `.deb` artifact before tagging.
+
 ## 7.0.0 — 2026-11-15
 
 ### 🚨 Critical fixes
