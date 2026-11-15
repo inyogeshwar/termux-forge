@@ -1144,178 +1144,48 @@ cmd_ai() {
 
 cmd_help() {
   printf '%s%sFORGE v%s%s\n' "$CY" "$B" "$FORGE_VERSION" "$R"
-  cat <<'EOF' | fold -s -w "$(ui_width)"
-forge <command> [options]
+  printf '%sforge <command> [options]%s\n' "$CY" "$R"
 
-SETUP
-  setup [--yes] [--name N]
-    Environment setup
-    --skip-android / --skip-ai
-    --skip-shell / --speedtest
-  doctor
-    Health check
-  info
-    Versions, paths, free space
-  update
-    Latest Forge install karo
+printf '\n'
+printf '%sSETUP%s\n' "$B" "$R"
+printf '  setup [--yes] [--name N]   Environment setup\n'
+printf '    --skip-android / --skip-ai / --skip-shell / --speedtest\n'
+printf '  doctor                       Health check\n'
+printf '  info                         Versions, paths, free space\n'
+printf '  update                       Latest Forge install karo\n'
 
-PROJECTS
-  create <name> [opts]
-    Naya project
-    --template kotlin|webview
-    --name "App"
-    --package com.x.y
-    --url https://example.com
-    --git
-  import <path>
-    Project Termux home me lao
-  list
-    Saare projects
-  rename [proj] "New Name"
-    App display name badlo
-  package [proj] com.new.pkg
-    Package aur folders badlo
-  icon [proj] <image>
-    App icon banao
-  bump [major|minor|patch] [proj]
-    App version badhao
-  clean [proj]
-    Build cache hatao
-  repair [proj]
-    SDK path aur wrapper fix
-  backup [proj]
-    Download/ForgeBackups me save
-
-BUILD & SHIP
-  build [release] [proj] [-i]
-    APK banao; -i se installer
-  bundle [proj]
-    Release AAB banao
-  install [debug|release] [proj]
-    Built APK ka installer kholo
-  export [type] [proj]
-    type: debug|release|aab|all
-    Download/ForgeApps me copy
-  keystore [info|backup|new]
-    Release signing key manage
-
-TOOLS
-  ai [proj]
-    OpenCode AI kholo
-  sdk <args>
-    sdkmanager passthrough
-  version
-    Forge version
-
-Tip: project folder ke andar
-[proj] dena zaroori nahi.
-EOF
-}
-
-# ──────────────────────────── entrypoints ────────────────────────────
-run_cli() {
-  export ANDROID_HOME="$ANDROID_SDK" ANDROID_SDK_ROOT="$ANDROID_SDK"
-  export JAVA_HOME="${JAVA_HOME:-$PREFIX/lib/jvm/java-17-openjdk}"
-  mkdir -p "$TMPDIR"
-  local cmd="${1:-help}"
-  if (($# > 0)); then shift; fi
-
-  case "$cmd" in
-    setup)            run_full_setup "$@" ;;
-    create|new)       cmd_create "$@" ;;
-    import)           cmd_import "$@" ;;
-    list|ls)          cmd_list ;;
-    build)            cmd_build "$@" ;;
-    bundle)           cmd_bundle "$@" ;;
-    install)          cmd_install "$@" ;;
-    export)           cmd_export "$@" ;;
-    icon)             cmd_icon "$@" ;;
-    package)          cmd_package "$@" ;;
-    rename)           cmd_rename "$@" ;;
-    bump)             cmd_bump "$@" ;;
-    clean)            cmd_clean "$@" ;;
-    repair)           cmd_repair "$@" ;;
-    backup)           cmd_backup "$@" ;;
-    keystore)         cmd_keystore "$@" ;;
-    update)           cmd_update ;;
-    ai)               cmd_ai "$@" ;;
-    sdk)              exec "$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_SDK" "$@" ;;
-    doctor)           doctor ;;
-    info)             cmd_info ;;
-    version|-v|--version) echo "termux-forge v${FORGE_VERSION}" ;;
-    help|-h|--help)   cmd_help ;;
-    *)                warn "Unknown command: $cmd"; cmd_help; return 1 ;;
-  esac
-}
-
-run_full_setup() {
-  while (($#)); do
-    case "$1" in
-      -y|--yes)       FORGE_YES=1 ;;
-      --name)         (($# >= 2)) || die "--name ke baad naam do"; FORGE_NAME="$2"; shift ;;
-      --skip-android) SKIP_ANDROID=1 ;;
-      --skip-ai)      SKIP_OPENCODE=1 ;;
-      --skip-shell)   SKIP_SHELL=1 ;;
-      --speedtest)    FORGE_SPEEDTEST=1 ;;
-      *)              warn "Ignoring unknown option: $1" ;;
-    esac
-    shift
-  done
-
-  [[ -n "${TERMUX_VERSION:-}" || "$PREFIX" == *com.termux* ]] \
-    || die "Yeh setup sirf Termux (Android) ke liye hai."
-
-  mkdir -p "$FORGE_DIR" "$TMPDIR"
-  export ANDROID_HOME="$ANDROID_SDK" ANDROID_SDK_ROOT="$ANDROID_SDK"
-  banner
-  ask_name
-  step_speedtest
-  step_storage
-  step_update
-  step_packages
-  step_shell
-  step_opencode
-  step_android_sdk
-  step_test_apk
-  step_finalize
-
-  ui_clear
-  printf '%s%s' "$G" "$B"
-  ui_text '=== SETUP COMPLETE ==='
-  printf '%s' "$R"
-  ui_text ''
-  ui_text '1. Shell reload:'
-  ui_text '   exec zsh'
-  ui_text ''
-  ui_text '2. Health check:'
-  ui_text '   forge doctor'
-  ui_text ''
-  ui_text '3. Naya project:'
-  ui_text '   forge create my-app'
-  ui_text '   cd ~/my-app'
-  ui_text ''
-  ui_text '4. AI coding:'
-  ui_text '   forge ai'
-  ui_text ''
-  ui_text '5. Debug APK:'
-  ui_text '   forge build'
-  ui_text ''
-  ui_text '6. Release + export:'
-  ui_text '   forge build release'
-  ui_text '   forge export'
-  ui_text ''
-  ui_text 'Saare commands: forge help'
-  ui_text ''
-  ui_text 'github.com/inyogeshwar/termux-forge'
-}
-
-main() {
-  case "${1:-}" in
-    --cli)    shift; run_cli "$@" ;;
-    --doctor) doctor ;;
-    version|-v|--version|help|-h|--help) run_cli "$@" ;;
-    *)        run_full_setup "$@" ;;
-  esac
+printf '\n'
+printf '%sPROJECTS%s\n' "$B" "$R"
+printf '  create <name> [opts]         Naya project\n'
+printf '    --template kotlin|webview  Template (default kotlin)\n'
+printf '    --name "App"               Display name\n'
+printf '    --package com.x.y          Package name\n'
+printf '    --url https://example.com  WebView ke liye website\n'
+printf '    --git                      git init bhi karo\n'
+printf '  import <path>                Project Termux home me lao\n'
+printf '  list                         Saare projects\n'
+printf '  rename [proj] "New Name"     App display name badlo\n'
+printf '  package [proj] com.new.pkg   Package aur folders badlo\n'
+printf '  icon [proj]          App icon banao\n'
+printf '  bump [major|minor|patch]     App version badhao\n'
+printf '  clean [proj]                 Build cache hatao\n'
+printf '  repair [proj]                SDK path aur wrapper fix\n'
+printf '  backup [proj]                Download/ForgeBackups me save\n'
+printf '\n'
+printf '%sBUILD & SHIP%s\n' "$B" "$R"
+printf '  build [release] [proj] [-i]  APK banao (-i = installer)\n'
+printf '  bundle [proj]                Release AAB banao\n'
+printf '  install [debug|release]      Built APK ka installer kholo\n'
+printf '  export [type] [proj]         debug|release|aab|all\n'
+printf '                               Download/ForgeApps me copy\n'
+printf '  keystore [info|backup|new]   Release signing key manage\n'
+printf '\n'
+printf '%sTOOLS%s\n' "$B" "$R"
+printf '  ai [proj]                    OpenCode AI kholo\n'
+printf '  sdk <args>                   sdkmanager passthrough\n'
+printf '  version                      Forge version\n'
+printf '\n'
+printf '%sTip:%s project folder ke andar [proj] dena zaroori nahi.\n' "$Y" "$R"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
