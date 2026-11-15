@@ -7,6 +7,10 @@
 - No localhost context, right-side clock or Nerd Font requirement.
 - Manual release workflow uploads a testable `.deb` artifact before tagging.
 - Pin new OpenCode installations to phone-tested 1.19.5 instead of npm latest; existing installations are preserved.
+- Prompt now keeps spaces in the saved name (`Yogeshwar Team` no longer becomes `YogeshwarTeam`) and
+  shows only the current folder instead of a truncated deep path.
+- Long output lines now leave two columns free, so Termux stops wrapping them oddly on narrow screens;
+  the setup-complete summary uses numbered blocks without wide rules.
 
 ## 7.0.0 — 2026-11-15
 

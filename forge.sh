@@ -75,7 +75,8 @@ ui_width() {
     cols=$(tput cols 2>/dev/null) || cols=40
   fi
   [[ "$cols" =~ ^[0-9]+$ ]] && (( cols > 1 )) || cols=40
-  printf '%s\n' "$((cols - 1))"
+  # Two free columns: one so the terminal never auto-wraps a full line.
+  printf '%s\n' "$((cols - 2))"
 }
 
 ui_text() { printf '%s\n' "$*" | fold -s -w "$(ui_width)"; }
@@ -289,17 +290,19 @@ plugins=(git zsh-autosuggestions)
 [[ -f "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
 
 _forge_prompt() {
-  local last_status=$? name width dir_width color=green
+  local last_status=$? name width color=green
   (( last_status )) && color=red
   name=$(cat "$HOME/.forge/.name" 2>/dev/null) || name=Forge
-  name="${name//[^A-Za-z0-9_-]/}"
+  # Keep spaces in the name, drop glyphs that can break a one-line prompt.
+  name="${name//[^A-Za-z0-9 _-]/}"
+  name="${name#"${name%%[! ]*}"}"
+  name="${name%"${name##*[! ]}"}"
   name="${name:-Forge}"
   width=$(( ${COLUMNS:-40} - 1 ))
-  (( width < 12 )) && width=12
-  name="${name[1,$((width / 3))]}"
-  dir_width=$((width - ${#name} - 3))
-  # Zsh truncates the displayed path as the terminal is resized.
-  PROMPT="%F{cyan}${name}%f %F{blue}%${dir_width}<..<%~%<<%f"$'\n'"%F{${color}}>%f "
+  (( width < 16 )) && width=16
+  (( ${#name} > width / 3 )) && name="${name[1,$((width / 3))]}"
+  # Only the current folder name, so deep paths stay short.
+  PROMPT="%F{cyan}${name}%f %F{blue}%1~%f"$'\n'"%F{${color}}>%f "
   RPROMPT=''
 }
 autoload -Uz add-zsh-hook
@@ -322,7 +325,9 @@ _forge() {
 _forge_banner() {
   local name width line
   name=$(cat "$HOME/.forge/.name" 2>/dev/null) || name=Forge
-  name="${name//[^A-Za-z0-9_-]/}"
+  name="${name//[^A-Za-z0-9 _-]/}"
+  name="${name#"${name%%[! ]*}"}"
+  name="${name%"${name##*[! ]}"}"
   name="${name:-Forge}"
   width=$(( ${COLUMNS:-40} - 1 ))
   (( width > 36 )) && width=36
@@ -334,7 +339,7 @@ _forge_banner() {
   print -r -- "Hi, ${name[1,$((width - 4))]}"
   print -P -- "%F{cyan}${line}%f"
   print -r -- 'forge help'
-  print
+  print -r -- ''
 }
 [[ -o interactive ]] && _forge_banner
 # ── END FORGE_ZSHRC ──────────────────────────────────────
@@ -1247,32 +1252,33 @@ run_full_setup() {
   step_finalize
 
   ui_clear
-  ui_rule
   printf '%s%s' "$G" "$B"
-  ui_text 'SETUP COMPLETE'
+  ui_text '=== SETUP COMPLETE ==='
   printf '%s' "$R"
-  ui_rule
-  ui_text 'Shell reload karo:'
-  ui_text '  exec zsh'
-  printf '\n'
-  ui_text 'Health check:'
-  ui_text '  forge doctor'
-  printf '\n'
-  ui_text 'Naya project:'
-  ui_text '  forge create my-app'
-  ui_text '  cd ~/my-app'
-  printf '\n'
-  ui_text 'AI coding:'
-  ui_text '  forge ai'
-  printf '\n'
-  ui_text 'Debug APK:'
-  ui_text '  forge build'
-  printf '\n'
-  ui_text 'Release aur export:'
-  ui_text '  forge build release'
-  ui_text '  forge export'
-  printf '\n'
+  ui_text ''
+  ui_text '1. Shell reload:'
+  ui_text '   exec zsh'
+  ui_text ''
+  ui_text '2. Health check:'
+  ui_text '   forge doctor'
+  ui_text ''
+  ui_text '3. Naya project:'
+  ui_text '   forge create my-app'
+  ui_text '   cd ~/my-app'
+  ui_text ''
+  ui_text '4. AI coding:'
+  ui_text '   forge ai'
+  ui_text ''
+  ui_text '5. Debug APK:'
+  ui_text '   forge build'
+  ui_text ''
+  ui_text '6. Release + export:'
+  ui_text '   forge build release'
+  ui_text '   forge export'
+  ui_text ''
   ui_text 'Saare commands: forge help'
+  ui_text ''
+  ui_text 'github.com/inyogeshwar/termux-forge'
 }
 
 main() {
