@@ -208,6 +208,77 @@ forge build release && forge export                              # 5. signed APK
 
 ---
 
+## 📖 Forge Commands — Simple Guide (Hindi + English)
+
+| Command | Kya karta hai (Hindi) | What it does (English) | Example |
+|---|---|---|---|
+| `forge setup` | Sab kuch install kare (SDK, Zsh, OpenCode, keystore) | Install everything | `forge setup --yes --name Yogeshwar` |
+| `forge doctor` | Check kare sab theek hai ya nahi | Health check | `forge doctor` |
+| `forge info` | Version, paths, free space dikhao | Show versions & paths | `forge info` |
+| `forge update` | Forge ko latest par update kare | Update Forge | `forge update` |
+
+**Project banana:**
+
+| Command | Kya karta hai (Hindi) | What it does | Example |
+|---|---|---|---|
+| `forge create <name>` | Naya Android project banaye | Create new project | `forge create my-app --name "My App" --package com.yogesh.myapp` |
+| `forge import <path>` | Purana project Termux mein lao | Import existing project | `forge import /sdcard/myproject` |
+| `forge list` | Saare projects dikhao | List all projects | `forge list` |
+| `forge rename` | Project ka display name badloe | Change app name | `forge rename my-app "My New App"` |
+| `forge package` | App ka package name badloe | Change package name | `forge package my-app com.yogesh.newapp` |
+| `forge icon` | App ka icon banaye | Create app icon | `forge icon my-app logo.png` |
+| `forge bump` | App version badhao (1.0.0 → 1.0.1) | Bump version | `forge bump patch` |
+| `forge clean` | Build ka purana cache hatao | Clean build cache | `forge clean` |
+| `forge repair` | SDK path aur Gradle wrapper theek kare | Fix project setup | `forge repair` |
+| `forge backup` | Project ka backup banaye | Backup project | `forge backup my-app` |
+
+**App banaye aur ship karein:**
+
+| Command | Kya karta hai (Hindi) | What it does | Example |
+|---|---|---|---|
+| `forge build` | Debug APK banaye | Build debug APK | `forge build` |
+| `forge build release` | Signed release APK banaye | Build signed release APK | `forge build release` |
+| `forge bundle` | Play Store ke liye `.aab` banaye | Build release bundle | `forge bundle` |
+| `forge install` | Banaya hua APK phone mein install kare | Install built APK | `forge install release` |
+| `forge export` | APK/AAB ko Download/ForgeApps mein copy kare | Export APK/AAB | `forge export release` |
+| `forge keystore` | Signing key manage kare (info/backup/new) | Manage signing key | `forge keystore backup` |
+
+**Tools:**
+
+| Command | Kya karta hai (Hindi) | What it does | Example |
+|---|---|---|---|
+| `forge ai` | OpenCode AI khole (code likhne ke liye) | Open AI coding agent | `forge ai` |
+| `forge sdk` | Android sdkmanager use kare | Run sdkmanager | `forge sdk --list` |
+| `forge version` | Forge ka version dikhao | Show version | `forge version` |
+| `forge help` | Saare commands ki list dikhao | Show all commands | `forge help` |
+
+### Complete Project Example
+
+```bash
+# Step 1: Naya project banayein
+forge create my-notes --name "My Notes" --package com.yogesh.notes
+
+# Step 2: Project folder mein jayein
+cd ~/my-notes
+
+# Step 3: AI se code likhwaiye (optional)
+forge ai
+
+# Step 4: Debug APK banayein
+forge build
+
+# Step 5: Phone mein install karein
+forge install
+
+# Step 6: Release APK banayein aur Download folder mein copy karein
+forge build release
+forge export release
+```
+
+**Result:** `Download/ForgeApps/` mein `my-notes-1.0.0-release.apk` mil jayegi.
+
+---
+
 ## 🧩 Templates
 
 ```bash
