@@ -1188,6 +1188,112 @@ printf '\n'
 printf '%sTip:%s project folder ke andar [proj] dena zaroori nahi.\n' "$Y" "$R"
 }
 
+# ──────────────────────────── entrypoints ────────────────────────────
+run_cli() {
+  export ANDROID_HOME="$ANDROID_SDK" ANDROID_SDK_ROOT="$ANDROID_SDK"
+  export JAVA_HOME="${JAVA_HOME:-$PREFIX/lib/jvm/java-17-openjdk}"
+  mkdir -p "$TMPDIR"
+  local cmd="${1:-help}"
+  if (($# > 0)); then shift; fi
+
+  case "$cmd" in
+    setup)            run_full_setup "$@" ;;
+    create|new)       cmd_create "$@" ;;
+    import)           cmd_import "$@" ;;
+    list|ls)          cmd_list ;;
+    build)            cmd_build "$@" ;;
+    bundle)           cmd_bundle "$@" ;;
+    install)          cmd_install "$@" ;;
+    export)           cmd_export "$@" ;;
+    icon)             cmd_icon "$@" ;;
+    package)          cmd_package "$@" ;;
+    rename)           cmd_rename "$@" ;;
+    bump)             cmd_bump "$@" ;;
+    clean)            cmd_clean "$@" ;;
+    repair)           cmd_repair "$@" ;;
+    backup)           cmd_backup "$@" ;;
+    keystore)         cmd_keystore "$@" ;;
+    update)           cmd_update ;;
+    ai)               cmd_ai "$@" ;;
+    sdk)              exec "$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_SDK" "$@" ;;
+    doctor)           doctor ;;
+    info)             cmd_info ;;
+    version|-v|--version) echo "termux-forge v${FORGE_VERSION}" ;;
+    help|-h|--help)   cmd_help ;;
+    *)                warn "Unknown command: $cmd"; cmd_help; return 1 ;;
+  esac
+}
+
+run_full_setup() {
+  while (($#)); do
+    case "$1" in
+      -y|--yes)       FORGE_YES=1 ;;
+      --name)         (($# >= 2)) || die "--name ke baad naam do"; FORGE_NAME="$2"; shift ;;
+      --skip-android) SKIP_ANDROID=1 ;;
+      --skip-ai)      SKIP_OPENCODE=1 ;;
+      --skip-shell)   SKIP_SHELL=1 ;;
+      --speedtest)    FORGE_SPEEDTEST=1 ;;
+      *)              warn "Ignoring unknown option: $1" ;;
+    esac
+    shift
+  done
+
+  [[ -n "${TERMUX_VERSION:-}" || "$PREFIX" == *com.termux* ]] \
+    || die "Yeh setup sirf Termux (Android) ke liye hai."
+
+  mkdir -p "$FORGE_DIR" "$TMPDIR"
+  export ANDROID_HOME="$ANDROID_SDK" ANDROID_SDK_ROOT="$ANDROID_SDK"
+  banner
+  ask_name
+  step_speedtest
+  step_storage
+  step_update
+  step_packages
+  step_shell
+  step_opencode
+  step_android_sdk
+  step_test_apk
+  step_finalize
+
+  ui_clear
+  printf '%s%s' "$G" "$B"
+  ui_text '=== SETUP COMPLETE ==='
+  printf '%s' "$R"
+  ui_text ''
+  ui_text '1. Shell reload:'
+  ui_text '   exec zsh'
+  ui_text ''
+  ui_text '2. Health check:'
+  ui_text '   forge doctor'
+  ui_text ''
+  ui_text '3. Naya project:'
+  ui_text '   forge create my-app'
+  ui_text '   cd ~/my-app'
+  ui_text ''
+  ui_text '4. AI coding:'
+  ui_text '   forge ai'
+  ui_text ''
+  ui_text '5. Debug APK:'
+  ui_text '   forge build'
+  ui_text ''
+  ui_text '6. Release + export:'
+  ui_text '   forge build release'
+  ui_text '   forge export'
+  ui_text ''
+  ui_text 'Saare commands: forge help'
+  ui_text ''
+  ui_text 'github.com/inyogeshwar/termux-forge'
+}
+
+main() {
+  case "${1:-}" in
+    --cli)    shift; run_cli "$@" ;;
+    --doctor) doctor ;;
+    version|-v|--version|help|-h|--help) run_cli "$@" ;;
+    *)        run_full_setup "$@" ;;
+  esac
+}
+
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   main "$@"
 fi
