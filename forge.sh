@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════╗
-# ║  ⚒️  TERMUX-FORGE — Ultimate Setup v6.3                   ║
+# ║  ⚒️  TERMUX-FORGE — Ultimate Setup v6.4 (Fast & Light)    ║
 # ╚══════════════════════════════════════════════════════════╝
 set -Eeuo pipefail
 
-readonly FORGE_VERSION="6.3.0"
+readonly FORGE_VERSION="6.4.0"
 readonly GRADLE_VER="8.9"
 readonly AGP_VER="8.7.3"
 readonly KOTLIN_VER="2.0.21"
@@ -83,12 +83,13 @@ pkg_install() {
   local attempt
 
   for attempt in {1..3}; do
-    if pkg install -y "${missing[@]}" 2>&1 | tee "$log_file"; then
-      ok "✓ Packages installed successfully."
+    # Added --no-install-recommends for faster/leaner install
+    if pkg install -y --no-install-recommends "${missing[@]}" 2>&1 | tee "$log_file"; then
+      ok "✓ Packages installed."
       return 0
     fi
     if [[ $attempt -lt 3 ]]; then
-      warn "⚠ Install fail hua (Attempt $attempt/3). Retrying in 3s..."
+      warn "⚠ Install fail (Attempt $attempt/3). Retrying in 3s..."
       sleep 3
     fi
   done
@@ -145,25 +146,24 @@ step_update() {
 
 step_packages() {
   clear
-  log "▰▰▰▱▱▱▱▱  [3/9] 📦 Base packages..."
+  log "▰▰▰▱▱▱▱▱  [3/9] 📦 Base packages (Optimized)..."
+  
+  # Removed: ruby, figlet, imagemagick (lazy load)
   pkg_install \
-    git curl wget unzip nano zsh toilet ruby figlet imagemagick \
+    git curl wget unzip zsh toilet \
     nodejs openjdk-17 gradle python \
     aapt aapt2 apksigner glibc-repo
 
   pkg update -y >/dev/null 2>&1 || true
   pkg_install glibc-runner
 
-  if ! have lolcat; then
-    gem install lolcat >/dev/null 2>&1 || warn "🔔 lolcat install fail"
-  fi
   ok "✅ Packages ready"
   sleep 1
 }
 
 step_shell() {
   clear
-  log "▰▰▰▰▱▱▱▱  [4/9] 🐚 Oh My Zsh + Powerlevel10k + Banner..."
+  log "▰▰▰▰▱▱▱▱  [4/9] 🐚 Oh My Zsh + Powerlevel10k..."
 
   if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
     RUNZSH=no KEEP_ZSHRC=yes \
@@ -177,7 +177,7 @@ step_shell() {
   [[ -d "$zc/plugins/zsh-autosuggestions" ]] \
     || git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions.git "$zc/plugins/zsh-autosuggestions" >/dev/null 2>&1 || true
 
-  # Clean .bashrc & Termux Welcome
+  # Remove old Termux welcome & bashrc stuff
   echo "" > "$PREFIX/etc/motd"
   if [ -f "$HOME/.bashrc" ]; then
     grep -vE "PS1=|Welcome to Termux|termux-welcome" "$HOME/.bashrc" > "$HOME/.bashrc.tmp" || true
@@ -195,7 +195,6 @@ plugins=(git zsh-autosuggestions)
 source $ZSH/oh-my-zsh.sh
 
 [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
-command -v lolcat >/dev/null && alias lc='lolcat'
 
 export ANDROID_SDK_ROOT="$HOME/android-sdk"
 export ANDROID_HOME="$HOME/android-sdk"
@@ -206,14 +205,13 @@ _forge_banner() {
   local name w out l p max=0
   name=$(cat ~/.forge/.name 2>/dev/null || echo Forge)
   w=${COLUMNS:-49}
+  # Removed lolcat, using toilet directly (Faster)
   out=$(toilet -w 1000 -f smblock -F border "$name" 2>/dev/null)
   while IFS= read -r l; do (( ${#l} > max )) && max=${#l}; done <<< "$out"
   (( max > w )) && out=$(toilet -w "$w" -f smblock "$name" 2>/dev/null)
   echo
-  while IFS= read -r l; do
-    p=$(( (w - ${#l}) / 2 )); (( p < 0 )) && p=0
-    printf "%*s%s\n" "$p" "" "$l"
-  done <<< "$out" | lolcat -S 1 -F 0.25 -p 2 2>/dev/null
+  # Print with Cyan color
+  echo -e "\e[36m$out\e[0m"
 }
 [[ -o interactive ]] && _forge_banner
 ZSHRC
@@ -288,7 +286,7 @@ step_android_sdk() {
   for t in aapt aapt2 aidl zipalign apksigner; do
     if [ -e "$BT/$t" ] && command -v "$t" >/dev/null; then
       local cmd_path=$(command -v "$t")
-      # ✅ FIX: Check if it's already the same file before linking
+      # FIX: Check if it's already the same file before linking to prevent error
       if [ "$cmd_path" != "$BT/$t" ]; then
         ln -sf "$cmd_path" "$BT/$t" 2>/dev/null || true
       fi
@@ -523,6 +521,11 @@ case "${1:-help}" in
     if [ -z "$icon_path" ] || [ ! -f "$icon_path" ]; then
       echo "❌ Usage: forge icon <project_folder> <path_to_image>"; exit 1
     fi
+    # ✅ Lazy Install ImageMagick only when icon is needed
+    if ! command -v convert >/dev/null 2>&1; then
+      echo "📦 Installing ImageMagick (needed for icons)..."
+      pkg install -y --no-install-recommends imagemagick >/dev/null 2>&1 || true
+    fi
     echo "🎨 Generating App Icons from $icon_path..."
     local res_dir="$proj_dir/app/src/main/res"
     mkdir -p "$res_dir/mipmap-mdpi" "$res_dir/mipmap-hdpi" "$res_dir/mipmap-xhdpi" "$res_dir/mipmap-xxhdpi" "$res_dir/mipmap-xxxhdpi"
@@ -592,11 +595,11 @@ case "${1:-help}" in
   sdk) exec sdkmanager --sdk_root="$ANDROID_HOME" "${@:2}" ;;
   ai) exec opencode ;;
   doctor) exec bash "$HOME/.local/share/termux-forge/forge.sh" --doctor ;;
-  version) echo "termux-forge v6.3.0" ;;
+  version) echo "termux-forge v6.4.0" ;;
   
   *) cat <<'EOF'
 ╔════════════════════════════════════════════╗
-║  ⚒️  FORGE CLI v6.3                        ║
+║  ⚒️  FORGE CLI v6.4                        ║
 ╠════════════════════════════════════════════╣
 ║  ➜ forge create <name>    New project      ║
 ║  ➜ forge import <path>    Import project   ║
@@ -614,7 +617,7 @@ EOF
 esac
 CLI
   chmod +x "$forge_bin"
-  ok "✅ forge CLI v6.3 installed"
+  ok "✅ forge CLI v6.4 installed"
 }
 
 doctor() {
@@ -630,7 +633,6 @@ doctor() {
   check "✓ java"                  'command -v java'
   check "✓ gradle"                'command -v gradle'
   check "✓ aapt2"                 'command -v aapt2'
-  check "✓ imagemagick"           'command -v convert'
   check "✓ OpenCode"              'command -v opencode'
   check "✓ Android SDK"           '[[ -d "$ANDROID_SDK" ]]'
   check "✓ platforms/android-35"  '[[ -d "$ANDROID_SDK/platforms/android-35" ]]'
